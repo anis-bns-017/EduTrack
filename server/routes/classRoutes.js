@@ -5,12 +5,13 @@ import {
   updateClass,
   deleteClass,
 } from "../controllers/classController.js";
-
+import protect from "./protect.js";
+ 
 const router = express.Router();
 
-router.get("/", getAllClasses);
-router.post("/", createClass);
-router.put("/:id", updateClass);
-router.delete("/:id", deleteClass);
+router.get("/", getAllClasses); // Public, add protect if you want to restrict
+router.post("/", protect, createClass);
+router.put("/:id", protect, updateClass);
+router.delete("/:id", protect, deleteClass);
 
 export default router;

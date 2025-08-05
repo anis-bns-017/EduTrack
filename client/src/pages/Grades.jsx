@@ -36,9 +36,7 @@ const Grades = () => {
     }
   };
 
-  console.log("students: ", students);
-
-  
+  console.log("Student from Grade: ", students);
 
   // Handle input change
   const handleInputChange = (e) => {

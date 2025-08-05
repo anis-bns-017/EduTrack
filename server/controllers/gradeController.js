@@ -2,6 +2,29 @@ import Grade from "../models/Grade.js";
 import Student from "../models/Student.js";
 import Class from "../models/Class.js";
 
+// GET /api/grades/report
+export const getGradesReport = async (req, res) => {
+  try {
+    // Optional filters by class, student, date range (if grades have dates)
+    const { classId, studentId } = req.query;
+
+    const filter = {};
+    if (classId) filter.class = classId;
+    if (studentId) filter.student = studentId;
+
+    // Fetch grades with student and class populated
+    const grades = await Grade.find(filter)
+      .populate("student", "name")
+      .populate("class", "className");
+
+    // You can add aggregation or average grades logic here
+
+    res.json(grades);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to get grades report" });
+  }
+};
+
 // GET all grades
 export const getAllGrades = async (req, res) => {
   try {

@@ -5,12 +5,14 @@ import {
   updateStudent,
   deleteStudent,
 } from "../controllers/studentController.js";
-
+import protect from "./protect.js";
+ 
 const router = express.Router();
 
-router.get("/", getAllStudents);
-router.post("/", createStudent);
-router.put("/:id", updateStudent);
-router.delete("/:id", deleteStudent);
+router.get("/", getAllStudents); // public, add protect here if needed: router.get("/", protect, getAllStudents);
+
+router.post("/", protect, createStudent);
+router.put("/:id", protect, updateStudent);
+router.delete("/:id", protect, deleteStudent);
 
 export default router;

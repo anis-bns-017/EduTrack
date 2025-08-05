@@ -12,6 +12,7 @@ export default function Teachers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState(null);
 
+  // Fetch all teachers from backend API
   const fetchTeachers = async () => {
     try {
       setLoading(true);
@@ -26,11 +27,13 @@ export default function Teachers() {
     }
   };
 
+  // Open modal with selected teacher data for editing
   const handleEdit = (teacher) => {
     setEditingTeacher(teacher);
     setIsModalOpen(true);
   };
 
+  // Delete teacher and refresh list
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this teacher?")) return;
 
@@ -43,16 +46,19 @@ export default function Teachers() {
     }
   };
 
+  // Close modal and reset editing state
   const handleFormClose = () => {
     setEditingTeacher(null);
     setIsModalOpen(false);
   };
 
+  // After successful add/edit, refresh teacher list and close modal
   const handleFormSuccess = () => {
     fetchTeachers();
     handleFormClose();
   };
 
+  // Fetch teachers on component mount
   useEffect(() => {
     fetchTeachers();
   }, []);

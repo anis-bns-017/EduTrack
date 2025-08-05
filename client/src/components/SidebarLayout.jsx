@@ -18,6 +18,7 @@ export default function SidebarLayout() {
     { to: "/classes", label: "🏫 Classes" },
     { to: "/grades", label: "📈 Grades" },
     { to: "/attendance", label: "🕒 Attendance" },
+    { to: "/reports", label: "📄 Reports" }
   ];
 
   return (

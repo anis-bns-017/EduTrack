@@ -9,6 +9,8 @@ import Students from "./components/Students";
 import Teachers from "./pages/Teachers";
 import Class from "./pages/Class";
 import Grades from "./pages/Grades";
+import Attendance from "./pages/Attendance";
+import Reports from "./pages/Reports";
  
 // Make sure this is imported
 
@@ -47,6 +49,8 @@ function App() {
           <Route path="teachers" element={<Teachers />} />
           <Route path="classes" element={<Class />} />
           <Route path="/grades" element={<Grades />} />
+          <Route path="/attendance" element={<Attendance />} />
+          <Route path="/reports" element={<Reports />} />
         </Route>
       </Routes>
     </>
