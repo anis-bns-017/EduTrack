@@ -3,7 +3,8 @@ import Student from "../models/Student.js";
 // GET all students
 export const getAllStudents = async (req, res) => {
   try {
-    const students = await Student.find().populate("class");
+    // No need to populate 'class' because it's now a string field, not a reference
+    const students = await Student.find();
     res.json({ success: true, students });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -17,7 +18,7 @@ export const createStudent = async (req, res) => {
       name,
       email,
       phone,
-      class: studentClass,
+      program,
       rollNumber,
       dateOfBirth,
       gender,
@@ -27,12 +28,16 @@ export const createStudent = async (req, res) => {
       enrollmentDate,
       status,
       profilePicture,
+      department,
+      facultyAdvisor,
+      yearOfStudy,
+      cgpa,
     } = req.body;
 
-    if (!name || !email || !studentClass) {
+    if (!name || !email || !program) {
       return res
         .status(400)
-        .json({ message: "Name, email, and class are required" });
+        .json({ message: "Name, email, and program are required" });
     }
 
     const emailExists = await Student.findOne({ email });
@@ -51,7 +56,7 @@ export const createStudent = async (req, res) => {
       name,
       email,
       phone,
-      class: studentClass,
+      program,
       rollNumber,
       dateOfBirth,
       gender,
@@ -61,6 +66,10 @@ export const createStudent = async (req, res) => {
       enrollmentDate,
       status,
       profilePicture,
+      department,
+      facultyAdvisor,
+      yearOfStudy,
+      cgpa,
     });
 
     res.status(201).json(newStudent);
@@ -76,7 +85,7 @@ export const updateStudent = async (req, res) => {
       name,
       email,
       phone,
-      class: studentClass,
+      program,
       rollNumber,
       dateOfBirth,
       gender,
@@ -86,12 +95,16 @@ export const updateStudent = async (req, res) => {
       enrollmentDate,
       status,
       profilePicture,
+      department,
+      facultyAdvisor,
+      yearOfStudy,
+      cgpa,
     } = req.body;
 
-    if (!name || !email || !studentClass) {
+    if (!name || !email || !program) {
       return res
         .status(400)
-        .json({ message: "Name, email, and class are required" });
+        .json({ message: "Name, email, and program are required" });
     }
 
     const student = await Student.findById(req.params.id);
@@ -117,7 +130,7 @@ export const updateStudent = async (req, res) => {
     student.name = name;
     student.email = email;
     student.phone = phone;
-    student.class = studentClass;
+    student.program = program;
     student.rollNumber = rollNumber;
     student.dateOfBirth = dateOfBirth;
     student.gender = gender;
@@ -127,6 +140,10 @@ export const updateStudent = async (req, res) => {
     student.enrollmentDate = enrollmentDate;
     student.status = status;
     student.profilePicture = profilePicture;
+    student.department = department;
+    student.facultyAdvisor = facultyAdvisor;
+    student.yearOfStudy = yearOfStudy;
+    student.cgpa = cgpa;
 
     await student.save();
     res.json(student);

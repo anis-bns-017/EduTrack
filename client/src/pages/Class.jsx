@@ -86,6 +86,8 @@ export default function Class() {
       </p>
     );
 
+  console.log("ClassList: ", classes);
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -104,7 +106,11 @@ export default function Class() {
             stroke="currentColor"
             strokeWidth={2}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 4v16m8-8H4"
+            />
           </svg>
           Add Class
         </button>

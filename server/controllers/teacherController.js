@@ -1,8 +1,6 @@
 import Teacher from "../models/Teacher.js";
 
-// @desc    Get all teachers
-// @route   GET /api/teachers
-// @access  Public
+// GET all teachers
 export const getAllTeachers = async (req, res) => {
   try {
     const teachers = await Teacher.find().sort({ createdAt: -1 });
@@ -12,9 +10,7 @@ export const getAllTeachers = async (req, res) => {
   }
 };
 
-// @desc    Create new teacher
-// @route   POST /api/teachers
-// @access  Protected
+// CREATE new teacher
 export const createTeacher = async (req, res) => {
   try {
     const {
@@ -28,13 +24,13 @@ export const createTeacher = async (req, res) => {
       experience,
       joiningDate,
       status,
+      qualifications,
+      officeRoom,
+      profilePicture,
     } = req.body;
 
-    // Validate required fields
-    if (!name || !email || !phone || !department || !designation) {
-      return res
-        .status(400)
-        .json({ message: "Please provide all required fields" });
+    if (!name || !email || !department || !designation) {
+      return res.status(400).json({ message: "Please provide all required fields" });
     }
 
     const newTeacher = new Teacher({
@@ -48,6 +44,9 @@ export const createTeacher = async (req, res) => {
       experience,
       joiningDate,
       status,
+      qualifications,
+      officeRoom,
+      profilePicture,
     });
 
     const createdTeacher = await newTeacher.save();
@@ -57,11 +56,12 @@ export const createTeacher = async (req, res) => {
   }
 };
 
-// @desc    Update teacher
-// @route   PUT /api/teachers/:id
-// @access  Protected
+// UPDATE teacher
 export const updateTeacher = async (req, res) => {
   try {
+    const teacher = await Teacher.findById(req.params.id);
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+
     const {
       name,
       email,
@@ -73,25 +73,24 @@ export const updateTeacher = async (req, res) => {
       experience,
       joiningDate,
       status,
+      qualifications,
+      officeRoom,
+      profilePicture,
     } = req.body;
 
-    const teacher = await Teacher.findById(req.params.id);
-
-    if (!teacher) {
-      return res.status(404).json({ message: "Teacher not found" });
-    }
-
-    // Update all fields if provided
-    teacher.name = name || teacher.name;
-    teacher.email = email || teacher.email;
-    teacher.phone = phone || teacher.phone;
-    teacher.department = department || teacher.department;
-    teacher.designation = designation || teacher.designation;
-    teacher.gender = gender || teacher.gender;
-    teacher.address = address || teacher.address;
+    teacher.name = name ?? teacher.name;
+    teacher.email = email ?? teacher.email;
+    teacher.phone = phone ?? teacher.phone;
+    teacher.department = department ?? teacher.department;
+    teacher.designation = designation ?? teacher.designation;
+    teacher.gender = gender ?? teacher.gender;
+    teacher.address = address ?? teacher.address;
     teacher.experience = experience ?? teacher.experience;
-    teacher.joiningDate = joiningDate || teacher.joiningDate;
-    teacher.status = status || teacher.status;
+    teacher.joiningDate = joiningDate ?? teacher.joiningDate;
+    teacher.status = status ?? teacher.status;
+    teacher.qualifications = qualifications ?? teacher.qualifications;
+    teacher.officeRoom = officeRoom ?? teacher.officeRoom;
+    teacher.profilePicture = profilePicture ?? teacher.profilePicture;
 
     const updatedTeacher = await teacher.save();
     res.status(200).json(updatedTeacher);
@@ -100,16 +99,11 @@ export const updateTeacher = async (req, res) => {
   }
 };
 
-// @desc    Delete teacher
-// @route   DELETE /api/teachers/:id
-// @access  Protected
+// DELETE teacher
 export const deleteTeacher = async (req, res) => {
   try {
     const teacher = await Teacher.findById(req.params.id);
-
-    if (!teacher) {
-      return res.status(404).json({ message: "Teacher not found" });
-    }
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
     await teacher.deleteOne();
     res.status(200).json({ message: "Teacher deleted successfully" });

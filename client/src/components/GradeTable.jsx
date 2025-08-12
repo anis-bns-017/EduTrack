@@ -1,19 +1,25 @@
 import React, { useEffect, useState } from "react";
-import axios from "../../api/axios"
+import axios from "../../api/axios";
 import { toast } from "react-hot-toast";
 
 export default function GradeTable() {
   const [grades, setGrades] = useState([]);
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
-  const [form, setForm] = useState({ student: "", classId: "", grade: "" });
+  const [form, setForm] = useState({
+    student: "",
+    class: "",
+    term: "",
+    gradeValue: "",
+    remarks: "",
+  });
   const [editId, setEditId] = useState(null);
 
   const fetchGrades = async () => {
     try {
-      const res = await axios.get("/api/grades");
+      const res = await axios.get("/grades");
       setGrades(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
+    } catch {
       toast.error("Failed to fetch grades");
     }
   };
@@ -21,15 +27,13 @@ export default function GradeTable() {
   const fetchStudentsAndClasses = async () => {
     try {
       const [studentRes, classRes] = await Promise.all([
-        axios.get("/api/students"),
-        axios.get("/api/classes"),
+        axios.get("/students"),
+        axios.get("/classes"),
       ]);
-      console.log("students: ", studentRes);
-      
       setStudents(Array.isArray(studentRes.data) ? studentRes.data : []);
       setClasses(Array.isArray(classRes.data) ? classRes.data : []);
-    } catch (err) {
-      toast.error("Failed to fetch data");
+    } catch {
+      toast.error("Failed to fetch students/classes");
     }
   };
 
@@ -42,13 +46,13 @@ export default function GradeTable() {
     e.preventDefault();
     try {
       if (editId) {
-        await axios.put(`/api/grades/${editId}`, form);
+        await axios.put(`/grades/${editId}`, form);
         toast.success("Grade updated");
       } else {
-        await axios.post("/api/grades", form);
+        await axios.post("/grades", form);
         toast.success("Grade added");
       }
-      setForm({ student: "", classId: "", grade: "" });
+      setForm({ student: "", class: "", term: "", gradeValue: "", remarks: "" });
       setEditId(null);
       fetchGrades();
     } catch {
@@ -58,9 +62,11 @@ export default function GradeTable() {
 
   const handleEdit = (grade) => {
     setForm({
-      student: grade.student._id,
-      classId: grade.class._id,
-      grade: grade.grade,
+      student: grade.student?._id || "",
+      class: grade.class?._id || "",
+      term: grade.term || "",
+      gradeValue: grade.gradeValue || "",
+      remarks: grade.remarks || "",
     });
     setEditId(grade._id);
   };
@@ -68,7 +74,7 @@ export default function GradeTable() {
   const handleDelete = async (id) => {
     if (confirm("Are you sure you want to delete this grade?")) {
       try {
-        await axios.delete(`/api/grades/${id}`);
+        await axios.delete(`/grades/${id}`);
         toast.success("Grade deleted");
         fetchGrades();
       } catch {
@@ -83,15 +89,17 @@ export default function GradeTable() {
         📊 Manage Grades
       </h2>
 
+      {/* FORM */}
       <form
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10 bg-white p-6 rounded-lg shadow-md"
+        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 mb-10 bg-white p-6 rounded-xl shadow-lg"
       >
+        {/* Student */}
         <select
-          className="border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={form.student}
           onChange={(e) => setForm({ ...form, student: e.target.value })}
           required
+          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
         >
           <option value="" disabled>
             Select Student
@@ -103,11 +111,12 @@ export default function GradeTable() {
           ))}
         </select>
 
+        {/* Class */}
         <select
-          className="border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          value={form.classId}
-          onChange={(e) => setForm({ ...form, classId: e.target.value })}
+          value={form.class}
+          onChange={(e) => setForm({ ...form, class: e.target.value })}
           required
+          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
         >
           <option value="" disabled>
             Select Class
@@ -119,33 +128,55 @@ export default function GradeTable() {
           ))}
         </select>
 
+        {/* Term */}
         <input
           type="text"
-          className="border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Grade (e.g., A+)"
-          value={form.grade}
-          onChange={(e) => setForm({ ...form, grade: e.target.value })}
+          placeholder="Term (e.g., Fall 2025)"
+          value={form.term}
+          onChange={(e) => setForm({ ...form, term: e.target.value })}
           required
+          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
         />
 
+        {/* Grade */}
+        <input
+          type="text"
+          placeholder="Grade (e.g., A+)"
+          value={form.gradeValue}
+          onChange={(e) => setForm({ ...form, gradeValue: e.target.value })}
+          required
+          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+        />
+
+        {/* Remarks */}
+        <input
+          type="text"
+          placeholder="Remarks"
+          value={form.remarks}
+          onChange={(e) => setForm({ ...form, remarks: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+        />
+
+        {/* Submit button full width on small and bigger screens */}
         <button
           type="submit"
-          className="bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition duration-200"
+          className="col-span-1 sm:col-span-2 md:col-span-5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-semibold px-6 py-3 shadow-md transition"
         >
           {editId ? "Update Grade" : "Add Grade"}
         </button>
       </form>
 
-      <div className="overflow-x-auto bg-white rounded-lg shadow-md">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      {/* TABLE WITH VERTICAL + HORIZONTAL SCROLL */}
+      <div className="bg-white rounded-xl shadow-lg overflow-x-auto max-h-[400px] overflow-y-auto">
+        <table className="min-w-[700px] divide-y divide-gray-200">
+          <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
-              {["Student", "Class", "Grade", "Actions"].map((header) => (
+              {["Student", "Class", "Term", "Grade", "Remarks", "Actions"].map((h) => (
                 <th
-                  key={header}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  key={h}
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide select-none"
                 >
-                  {header}
+                  {h}
                 </th>
               ))}
             </tr>
@@ -153,10 +184,7 @@ export default function GradeTable() {
           <tbody className="divide-y divide-gray-200">
             {grades.length === 0 ? (
               <tr>
-                <td
-                  colSpan={4}
-                  className="px-6 py-4 text-center text-gray-400 italic"
-                >
+                <td colSpan={6} className="px-6 py-4 text-center text-gray-400 italic">
                   No grades available.
                 </td>
               </tr>
@@ -164,27 +192,23 @@ export default function GradeTable() {
               grades.map((g) => (
                 <tr
                   key={g._id}
-                  className="hover:bg-blue-50 transition duration-150"
+                  className="hover:bg-blue-50 transition-colors duration-200"
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
-                    {g.student.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">
-                    {g.class.className}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">
-                    {g.grade}
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">{g.student?.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{g.class?.className}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{g.term}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{g.gradeValue}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{g.remarks}</td>
                   <td className="px-6 py-4 whitespace-nowrap space-x-3">
                     <button
                       onClick={() => handleEdit(g)}
-                      className="px-3 py-1 rounded-md bg-yellow-400 hover:bg-yellow-500 text-white font-semibold transition duration-150"
+                      className="px-3 py-1 bg-yellow-400 hover:bg-yellow-500 text-white rounded-md shadow-sm transition"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(g._id)}
-                      className="px-3 py-1 rounded-md bg-red-500 hover:bg-red-600 text-white font-semibold transition duration-150"
+                      className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md shadow-sm transition"
                     >
                       Delete
                     </button>

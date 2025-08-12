@@ -1,10 +1,11 @@
-import { Link, useNavigate, Outlet } from "react-router-dom";
+import { Link, useNavigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import React from "react";
 
 export default function SidebarLayout() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation(); // <-- To detect current route
 
   const handleLogout = () => {
     setUser(null);
@@ -26,16 +27,25 @@ export default function SidebarLayout() {
       <aside className="w-64 bg-white border-r shadow-md p-6">
         <h2 className="text-2xl font-bold text-blue-700 mb-8">EduTrack</h2>
         <nav className="space-y-4">
-          {menuItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="block px-3 py-2 rounded hover:bg-blue-100 text-gray-700 font-medium"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {menuItems.map((item) => {
+            const isActive = location.pathname === item.to;
+
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`block px-3 py-2 rounded font-medium ${
+                  isActive
+                    ? "bg-blue-500 text-white"
+                    : "text-gray-700 hover:bg-blue-100"
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
+
         <button
           onClick={handleLogout}
           className="mt-10 bg-red-500 hover:bg-red-600 text-white w-full py-2 rounded shadow-sm"

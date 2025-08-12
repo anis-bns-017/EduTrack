@@ -16,13 +16,15 @@ const studentSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
-  class: {
+  // Changed from 'class' to 'program' or 'degree' for university context
+  program: {
     type: String,
     required: true,
   },
   rollNumber: {
     type: String,
     unique: true,
+    sparse: true, // allows some docs to not have rollNumber
   },
   dateOfBirth: {
     type: Date,
@@ -50,9 +52,25 @@ const studentSchema = new mongoose.Schema({
     default: "Active",
   },
   profilePicture: {
-    type: String, // URL to profile pic
+    type: String, // URL to profile picture
   },
-  // You can add relations like attendance records, grades, etc. later
+  department: {
+    type: String,
+  },
+  facultyAdvisor: {
+    type: String,
+  },
+  yearOfStudy: {
+    type: Number,
+    min: 1,
+    max: 5,
+  },
+  cgpa: {
+    type: Number,
+    min: 0,
+    max: 4,
+  },
+  // Add more fields as needed (e.g., attendance, courses, etc.)
 }, {
   timestamps: true,
 });

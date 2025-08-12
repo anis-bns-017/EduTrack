@@ -9,6 +9,8 @@ import teacherRoutes from "./routes/teachers.js";
 import classRoutes from "./routes/classRoutes.js"
 import gradeRoutes from "./routes/grades.js"
 import attendanceRoutes from "./routes/attendanceRoutes.js";
+import departmentRoutes from "./routes/departmentRoutes.js";
+import courseRoutes from "./routes/courseRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 
 // Config
@@ -52,6 +54,8 @@ app.use("/api/grades", gradeRoutes)
 app.use("/api/classes", classRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/departments", departmentRoutes);
+app.use("/api/courses", courseRoutes);
 
 const PORT = process.env.PORT || 5000;
 
