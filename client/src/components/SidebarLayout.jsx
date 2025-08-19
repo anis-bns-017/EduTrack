@@ -1,17 +1,14 @@
 import { Link, useNavigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import React from "react";
-
 export default function SidebarLayout() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation(); // <-- To detect current route
-
   const handleLogout = () => {
     setUser(null);
     navigate("/login");
   };
-
   const menuItems = [
     { to: "/", label: "📊 Dashboard" },
     { to: "/students", label: "🎓 Students" },
@@ -21,7 +18,6 @@ export default function SidebarLayout() {
     { to: "/attendance", label: "🕒 Attendance" },
     { to: "/reports", label: "📄 Reports" }
   ];
-
   return (
     <div className="flex min-h-screen bg-gray-100">
       <aside className="w-64 bg-white border-r shadow-md p-6">
@@ -29,7 +25,6 @@ export default function SidebarLayout() {
         <nav className="space-y-4">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.to;
-
             return (
               <Link
                 key={item.to}
@@ -45,7 +40,6 @@ export default function SidebarLayout() {
             );
           })}
         </nav>
-
         <button
           onClick={handleLogout}
           className="mt-10 bg-red-500 hover:bg-red-600 text-white w-full py-2 rounded shadow-sm"
@@ -53,14 +47,12 @@ export default function SidebarLayout() {
           Logout
         </button>
       </aside>
-
       <main className="flex-1 p-6">
         <div className="mb-4 text-sm text-gray-600">
           Logged in as:{" "}
           <span className="font-semibold text-gray-800">{user?.name}</span> (
           {user?.role})
         </div>
-
         {/* Render nested routes here */}
         <Outlet />
       </main>

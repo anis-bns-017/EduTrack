@@ -1,61 +1,104 @@
 import Attendance from "../models/Attendance.js";
 import asyncHandler from "express-async-handler";
 
-// GET /api/attendance/report
+/**
+ * GET /api/attendance/report
+ * Generates an attendance report with optional date range filtering.
+ */
 export const getAttendanceReport = async (req, res) => {
   try {
-    // Example: aggregate attendance % per class or per student
-
-    // For simplicity, return all attendance records filtered by optional date query
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, course, department, student } = req.query;
 
     const filter = {};
     if (startDate || endDate) {
-      filter.date = {};
-      if (startDate) filter.date.$gte = new Date(startDate);
-      if (endDate) filter.date.$lte = new Date(endDate);
+      filter.lectureDate = {};
+      if (startDate) filter.lectureDate.$gte = new Date(startDate);
+      if (endDate) filter.lectureDate.$lte = new Date(endDate);
     }
+    if (course) filter.course = course;
+    if (department) filter.department = department;
+    if (student) filter.student = student;
 
-    // Populate student and class info
     const attendanceRecords = await Attendance.find(filter)
-      .populate("student", "name")
-      .populate("class", "className");
-
-    // Here you can add aggregation or summarization logic if needed
+      .populate("student", "name roll")
+      .populate("department", "name")
+      .populate("course", "name code")
+      .sort({ lectureDate: -1 });
 
     res.json(attendanceRecords);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Failed to get attendance report" });
   }
 };
 
-// Get all attendance records
+/**
+ * GET /api/attendance
+ * Returns all attendance records.
+ */
 export const getAllAttendance = asyncHandler(async (req, res) => {
   const records = await Attendance.find()
-    .populate("student", "name roll className")
-    .sort({ date: -1 });
+    .populate("student", "name rollNumber")
+    .populate("department", "name")
+    .populate("course", "name code")
+    .sort({ lectureDate: -1 });
+
   res.json(records);
 });
 
-// Add new attendance
+/**
+ * POST /api/attendance
+ * Add a new attendance record.
+ */
 export const addAttendance = asyncHandler(async (req, res) => {
-  const { student, which_class, date, status } = req.body;
+  const {
+    student,
+    department,
+    course,
+    term,
+    semester,
+    academicYear,
+    lectureDate,
+    lectureNumber,
+    status,
+    remarks
+  } = req.body;
 
-  const existing = await Attendance.findOne({ student, date });
+  // Prevent duplicate attendance for the same student, course, and date
+  const existing = await Attendance.findOne({
+    student,
+    course,
+    lectureDate
+  });
   if (existing) {
     res.status(400);
-    throw new Error("Attendance already recorded for this date.");
+    throw new Error("Attendance already recorded for this course and date.");
   }
 
-  const record = new Attendance({ student, which_class, date, status });
+  const record = new Attendance({
+    student,
+    department,
+    course,
+    term,
+    semester,
+    academicYear,
+    lectureDate,
+    lectureNumber,
+    status,
+    remarks
+  });
+
   const saved = await record.save();
   res.status(201).json(saved);
 });
 
-// Update attendance
+/**
+ * PUT /api/attendance/:id
+ * Update attendance status or remarks.
+ */
 export const updateAttendance = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, remarks } = req.body;
 
   const record = await Attendance.findById(id);
   if (!record) {
@@ -63,12 +106,17 @@ export const updateAttendance = asyncHandler(async (req, res) => {
     throw new Error("Attendance record not found.");
   }
 
-  record.status = status;
+  if (status) record.status = status;
+  if (remarks) record.remarks = remarks;
+
   const updated = await record.save();
   res.json(updated);
 });
 
-// Delete attendance
+/**
+ * DELETE /api/attendance/:id
+ * Remove an attendance record.
+ */
 export const deleteAttendance = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const record = await Attendance.findById(id);

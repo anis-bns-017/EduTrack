@@ -1,48 +1,31 @@
+// class.model.js
 import mongoose from "mongoose";
 
 const classSchema = new mongoose.Schema(
   {
-    className: {
-      type: String,
-      required: true,
-      trim: true,
+    course: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Course", // make sure you have a Course model
     },
-    subject: {
-      type: String,
+    courseCode: { type: String, trim: true },
+    className: { type: String, required: true, trim: true },
+    subject: { type: String, required: true, trim: true },
+    department: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
       required: true,
-      trim: true,
     },
     teacher: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Teacher",
       required: true,
     },
-    room: {
-      type: String,
-      trim: true,
-    },
-    schedule: {
-      day: {
-        type: String,
-        enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-      },
-      time: {
-        type: String,
-        trim: true,
-      },
-    },
-    status: {
-      type: String,
-      enum: ["Active", "Inactive", "Archived"],
-      default: "Active",
-    },
+    semester: { type: String, trim: true },
+    credits: { type: Number, min: 0 },
+    room: { type: String, trim: true },
+    schedule: { type: [{ day: String, time: String }], default: [] },
   },
   { timestamps: true }
 );
 
-// Indexes for faster querying
-classSchema.index({ className: 1 });
-classSchema.index({ teacher: 1 });
-
-const Class = mongoose.model("Class", classSchema);
-export default Class;
+export default mongoose.model("Class", classSchema);

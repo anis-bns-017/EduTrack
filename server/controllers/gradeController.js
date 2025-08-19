@@ -75,13 +75,14 @@ export const getAllGrades = async (req, res) => {
     const [grades, total] = await Promise.all([
       Grade.find()
         .populate("student", "name rollNumber email")
-        .populate("course", "courseName code creditHours")
+        .populate("course", "name code creditHours")
         .populate("department", "name faculty")
         .skip(skip)
         .limit(Number(limit))
         .sort({ createdAt: -1 }),
       Grade.countDocuments()
     ]);
+
 
     res.status(200).json({
       total,
@@ -100,9 +101,9 @@ export const getAllGrades = async (req, res) => {
  */
 export const createGrade = async (req, res) => {
   try {
-    const { student, department, course, term, academicYear, assessments, remarks, creditHours } = req.body;
+    const { student, department, semester, course, term, academicYear, assessments, remarks, creditHours } = req.body;
 
-    if (!student || !department || !course || !term || !academicYear || !creditHours) {
+    if (!student || !semester || !department || !course || !term || !academicYear || !creditHours) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -115,7 +116,7 @@ export const createGrade = async (req, res) => {
     const courseExists = await Course.findById(course);
     if (!courseExists) return res.status(404).json({ message: "Course not found" });
 
-    const existingGrade = await Grade.findOne({ student, course, term, academicYear });
+    const existingGrade = await Grade.findOne({ student, semester, course, term, academicYear });
     if (existingGrade) {
       return res.status(409).json({ message: "Grade already exists for this course and term", existingGrade });
     }
@@ -126,6 +127,7 @@ export const createGrade = async (req, res) => {
       student,
       department,
       course,
+      semester,
       term,
       academicYear,
       assessments,
