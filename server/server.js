@@ -12,6 +12,7 @@ import attendanceRoutes from "./routes/attendanceRoutes.js";
 import departmentRoutes from "./routes/departmentRoutes.js";
 import courseRoutes from "./routes/courseRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import facultyRoutes from "./routes/facultyRoutes.js";
 
 // Config
 dotenv.config();
@@ -56,6 +57,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/courses", courseRoutes);
+app.use("/api/faculties", facultyRoutes);
 
 const PORT = process.env.PORT || 5000;
 

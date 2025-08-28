@@ -123,6 +123,7 @@ export const getStudent = async (req, res) => {
 // @desc    Create new student with comprehensive validation
 // @route   POST /api/students
 export const createStudent = async (req, res) => {
+  console.log("backend: ", req.body);
   try {
     // Validate required fields
     const requiredFields = [

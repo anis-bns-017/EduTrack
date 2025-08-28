@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import AttendanceTable from "../components/AttendanceTable";
 import AttendanceModal from "../components/AttendanceModal";
 import axios from "../../api/axios";
 import { toast } from "react-hot-toast";
-import { Calendar, UserCheck, School, BookOpen, Filter, X } from 'lucide-react';
+import { Calendar, UserCheck, School, BookOpen, Filter, X } from "lucide-react";
+import AttendanceTable from "../components/AttendanceTable";
 
 // A helper function to safely extract array data from various API response shapes
 const extractArrayData = (response, key) => {
@@ -11,6 +11,27 @@ const extractArrayData = (response, key) => {
   if (Array.isArray(data)) return data;
   if (data && Array.isArray(data[key])) return data[key];
   return [];
+};
+
+// Helper function to get student name from ID or object
+const getStudentName = (student, studentsList) => {
+  if (!student) return "Unknown";
+  
+  // If student is already an object with name
+  if (typeof student === 'object' && student.name) {
+    return student.name;
+  }
+  
+  // If student is an ID string
+  const studentId = typeof student === 'string' ? student : student._id || student.id;
+  if (!studentId) return "Unknown";
+  
+  // Find student in the students list
+  const foundStudent = studentsList.find(s => 
+    (s._id === studentId || s.id === studentId)
+  );
+  
+  return foundStudent ? foundStudent.name : "Unknown";
 };
 
 export default function Attendance() {
@@ -22,11 +43,9 @@ export default function Attendance() {
   const [departments, setDepartments] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedAttendance, setSelectedAttendance] = useState(null);
-  
   // New states for better UI feedback
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
   // Filter states
   const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters] = useState({
@@ -36,7 +55,7 @@ export default function Attendance() {
     department: "",
     status: "",
     dateFrom: "",
-    dateTo: ""
+    dateTo: "",
   });
 
   // --- Data Fetching ---
@@ -44,18 +63,71 @@ export default function Attendance() {
     try {
       setLoading(true);
       setError(null);
-      const [attRes, studentsRes, classesRes, coursesRes, deptRes] = await Promise.all([
-        axios.get("/attendance"),
-        axios.get("/students"),
-        axios.get("/classes"),
-        axios.get("/courses"),
-        axios.get("/departments"),
-      ]);
-      setAttendanceList(extractArrayData(attRes, 'attendance'));
-      setStudents(extractArrayData(studentsRes, 'students'));
-      setClasses(extractArrayData(classesRes, 'data'));
-      setCourses(extractArrayData(coursesRes, 'data'));
-      setDepartments(extractArrayData(deptRes, 'data'));
+      const [attRes, studentsRes, classesRes, coursesRes, deptRes] =
+        await Promise.all([
+          axios.get("/attendance"),
+          axios.get("/students"),
+          axios.get("/classes"),
+          axios.get("/courses"),
+          axios.get("/departments"),
+        ]);
+      
+      const attendanceData = extractArrayData(attRes, "attendance");
+      const studentsData = extractArrayData(studentsRes.data, "students");
+      const classesData = extractArrayData(classesRes, "data");
+      const coursesData = extractArrayData(coursesRes, "data");
+      const departmentsData = extractArrayData(deptRes, "data");
+      
+      // Enrich attendance data with complete student information
+      const enrichedAttendance = attendanceData.map(att => {
+        // Handle student data - it could be an ID string or an object
+        let studentData = att.student;
+        if (typeof att.student === 'string') {
+          // If student is just an ID, find the full student object
+          const student = studentsData.find(s => s._id === att.student || s.id === att.student);
+          studentData = student || { _id: att.student, name: "Unknown Student" };
+        } else if (att.student && !att.student.name) {
+          // If student is an object but missing name, try to find it
+          const student = studentsData.find(s => s._id === att.student._id || s.id === att.student.id);
+          studentData = student || { ...att.student, name: "Unknown Student" };
+        }
+        
+        // Handle class data - it could be an ID string or an object
+        let classData = att.class;
+        if (typeof att.class === 'string') {
+          const classObj = classesData.find(c => c._id === att.class || c.id === att.class);
+          classData = classObj || { _id: att.class, className: "Unknown Class" };
+        }
+        
+        // Handle course data - it could be an ID string or an object
+        let courseData = att.course;
+        if (typeof att.course === 'string') {
+          const courseObj = coursesData.find(c => c._id === att.course || c.id === att.course);
+          courseData = courseObj || { _id: att.course, name: "Unknown Course" };
+        }
+        
+        // Handle department data - it could be an ID string or an object
+        let departmentData = att.department;
+        if (typeof att.department === 'string') {
+          const deptObj = departmentsData.find(d => d._id === att.department || d.id === att.department);
+          departmentData = deptObj || { _id: att.department, name: "Unknown Department" };
+        }
+        
+        return {
+          ...att,
+          student: studentData,
+          class: classData,
+          course: courseData,
+          department: departmentData
+        };
+      });
+      
+      setAttendanceList(enrichedAttendance);
+      setStudents(studentsData);
+      
+      setClasses(classesData);
+      setCourses(coursesData);
+      setDepartments(departmentsData);
     } catch (err) {
       toast.error("Failed to load data. Please check your connection.");
       setError("Could not fetch attendance data.");
@@ -69,9 +141,11 @@ export default function Attendance() {
     fetchData();
   }, [fetchData]);
 
+  console.log("asss: ", students);
+
   // --- Filter Handlers ---
   const handleFilterChange = (name, value) => {
-    setFilters(prev => ({ ...prev, [name]: value }));
+    setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
   const clearFilters = () => {
@@ -82,30 +156,67 @@ export default function Attendance() {
       department: "",
       status: "",
       dateFrom: "",
-      dateTo: ""
+      dateTo: "",
     });
   };
 
   // Check if any filters are active
-  const hasActiveFilters = Object.values(filters).some(value => value !== "");
+  const hasActiveFilters = Object.values(filters).some((value) => value !== "");
 
   // Apply filters to attendance list
   const filteredAttendanceList = useMemo(() => {
-    return attendanceList.filter(att => {
-      // Student filter
-      if (filters.student && !(
-        (att.student?.name?.toLowerCase().includes(filters.student.toLowerCase()) ||
-         att.student?._id?.toLowerCase().includes(filters.student.toLowerCase()))
-      )) return false;
+    return attendanceList.filter((att) => {
+      // Student filter - handle both name and ID
+      if (filters.student) {
+        const studentName = att.student?.name || "Unknown";
+        const studentId = att.student?._id || att.student?.id || "";
+        
+        if (
+          !studentName.toLowerCase().includes(filters.student.toLowerCase()) &&
+          !studentId.toLowerCase().includes(filters.student.toLowerCase())
+        ) {
+          return false;
+        }
+      }
       
-      // Class filter
-      if (filters.class && att.class?._id !== filters.class && att.class?.className !== filters.class) return false;
+      // Class filter - handle both ID and className
+      if (filters.class) {
+        const classId = att.class?._id || att.class?.id || "";
+        const className = att.class?.className || "";
+        
+        if (
+          classId !== filters.class &&
+          !className.toLowerCase().includes(filters.class.toLowerCase())
+        ) {
+          return false;
+        }
+      }
       
-      // Course filter
-      if (filters.course && att.course?._id !== filters.course && att.course?.name !== filters.course) return false;
+      // Course filter - handle both ID and name
+      if (filters.course) {
+        const courseId = att.course?._id || att.course?.id || "";
+        const courseName = att.course?.name || "";
+        
+        if (
+          courseId !== filters.course &&
+          !courseName.toLowerCase().includes(filters.course.toLowerCase())
+        ) {
+          return false;
+        }
+      }
       
-      // Department filter
-      if (filters.department && att.department?._id !== filters.department && att.department?.name !== filters.department) return false;
+      // Department filter - handle both ID and name
+      if (filters.department) {
+        const departmentId = att.department?._id || att.department?.id || "";
+        const departmentName = att.department?.name || "";
+        
+        if (
+          departmentId !== filters.department &&
+          !departmentName.toLowerCase().includes(filters.department.toLowerCase())
+        ) {
+          return false;
+        }
+      }
       
       // Status filter
       if (filters.status && att.status !== filters.status) return false;
@@ -120,10 +231,11 @@ export default function Attendance() {
 
   // --- Event Handlers (memoized with useCallback) ---
   const handleEdit = useCallback((item) => {
+    console.log("we got: ", item);
     setSelectedAttendance(item);
     setModalOpen(true);
   }, []);
-  
+
   const handleAddNew = useCallback(() => {
     setSelectedAttendance(null);
     setModalOpen(true);
@@ -138,24 +250,28 @@ export default function Attendance() {
     fetchData(); // Refetch data on successful add/edit
     handleCloseModal();
   }, [fetchData, handleCloseModal]);
-  
+
   // --- Memoized Statistics for Cards ---
   const stats = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const todaysRecords = attendanceList.filter(att => att.date === today);
+    const today = new Date().toISOString().split("T")[0];
+    const todaysRecords = attendanceList.filter((att) => att.date === today);
     return {
       totalRecords: attendanceList.length,
       todaysRecords: todaysRecords.length,
-      uniqueStudents: new Set(attendanceList.map(att => att.student?._id)).size,
+      uniqueStudents: new Set(attendanceList.map((att) => att.student?._id || att.student?.id))
+        .size,
       totalCourses: courses.length,
-    }
+    };
   }, [attendanceList, courses]);
 
   // --- Unique values for filter dropdowns ---
   const uniqueStatuses = useMemo(() => {
-    return [...new Set(attendanceList.map(att => att.status).filter(Boolean))];
+    return [
+      ...new Set(attendanceList.map((att) => att.status).filter(Boolean)),
+    ];
   }, [attendanceList]);
 
+ 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -168,7 +284,9 @@ export default function Attendance() {
               </span>
               Attendance Management
             </h1>
-            <p className="text-gray-600 mt-2">Track and manage student attendance records efficiently.</p>
+            <p className="text-gray-600 mt-2">
+              Track and manage student attendance records efficiently.
+            </p>
           </div>
           <button
             onClick={handleAddNew}
@@ -180,10 +298,30 @@ export default function Attendance() {
 
         {/* --- Stats Cards --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard icon={<Calendar size={24} />} title="Total Records" value={stats.totalRecords} color="blue" />
-          <StatCard icon={<UserCheck size={24} />} title="Today's Records" value={stats.todaysRecords} color="green" />
-          <StatCard icon={<School size={24} />} title="Tracked Students" value={stats.uniqueStudents} color="purple" />
-          <StatCard icon={<BookOpen size={24} />} title="Active Courses" value={stats.totalCourses} color="yellow" />
+          <StatCard
+            icon={<Calendar size={24} />}
+            title="Total Records"
+            value={stats.totalRecords}
+            color="blue"
+          />
+          <StatCard
+            icon={<UserCheck size={24} />}
+            title="Today's Records"
+            value={stats.todaysRecords}
+            color="green"
+          />
+          <StatCard
+            icon={<School size={24} />}
+            title="Tracked Students"
+            value={stats.uniqueStudents}
+            color="purple"
+          />
+          <StatCard
+            icon={<BookOpen size={24} />}
+            title="Active Courses"
+            value={stats.totalCourses}
+            color="yellow"
+          />
         </div>
 
         {/* --- Filters Section --- */}
@@ -195,7 +333,7 @@ export default function Attendance() {
             </h2>
             <div className="flex space-x-2">
               {hasActiveFilters && (
-                <button 
+                <button
                   onClick={clearFilters}
                   className="text-sm text-gray-600 hover:text-gray-900 flex items-center"
                 >
@@ -203,7 +341,7 @@ export default function Attendance() {
                   Clear Filters
                 </button>
               )}
-              <button 
+              <button
                 onClick={() => setShowFilters(!showFilters)}
                 className="text-gray-600 hover:text-gray-900"
               >
@@ -211,22 +349,26 @@ export default function Attendance() {
               </button>
             </div>
           </div>
-          
           {showFilters && (
             <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Student</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Student
+                </label>
                 <input
                   type="text"
                   placeholder="Search by name or ID"
                   value={filters.student}
-                  onChange={(e) => handleFilterChange("student", e.target.value)}
+                  onChange={(e) =>
+                    handleFilterChange("student", e.target.value)
+                  }
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Class
+                </label>
                 <select
                   value={filters.class}
                   onChange={(e) => handleFilterChange("class", e.target.value)}
@@ -234,13 +376,16 @@ export default function Attendance() {
                 >
                   <option value="">All Classes</option>
                   {classes.map((c) => (
-                    <option key={c._id} value={c._id}>{c.className}</option>
+                    <option key={c._id || c.id} value={c._id || c.id}>
+                      {c.className}
+                    </option>
                   ))}
                 </select>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Course
+                </label>
                 <select
                   value={filters.course}
                   onChange={(e) => handleFilterChange("course", e.target.value)}
@@ -248,27 +393,35 @@ export default function Attendance() {
                 >
                   <option value="">All Courses</option>
                   {courses.map((c) => (
-                    <option key={c._id} value={c._id}>{c.name}</option>
+                    <option key={c._id || c.id} value={c._id || c.id}>
+                      {c.name}
+                    </option>
                   ))}
                 </select>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Department
+                </label>
                 <select
                   value={filters.department}
-                  onChange={(e) => handleFilterChange("department", e.target.value)}
+                  onChange={(e) =>
+                    handleFilterChange("department", e.target.value)
+                  }
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="">All Departments</option>
                   {departments.map((d) => (
-                    <option key={d._id} value={d._id}>{d.name}</option>
+                    <option key={d._id || d.id} value={d._id || d.id}>
+                      {d.name}
+                    </option>
                   ))}
                 </select>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
                 <select
                   value={filters.status}
                   onChange={(e) => handleFilterChange("status", e.target.value)}
@@ -276,25 +429,32 @@ export default function Attendance() {
                 >
                   <option value="">All Statuses</option>
                   {uniqueStatuses.map((status) => (
-                    <option key={status} value={status}>{status}</option>
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
                   ))}
                 </select>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Date Range
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="date"
                     value={filters.dateFrom}
-                    onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("dateFrom", e.target.value)
+                    }
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
                     placeholder="From"
                   />
                   <input
                     type="date"
                     value={filters.dateTo}
-                    onChange={(e) => handleFilterChange("dateTo", e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("dateTo", e.target.value)
+                    }
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
                     placeholder="To"
                   />
@@ -307,8 +467,15 @@ export default function Attendance() {
         {/* --- Results Info --- */}
         <div className="flex justify-between items-center mb-4">
           <p className="text-gray-700">
-            Showing <span className="font-semibold">{filteredAttendanceList.length}</span> of <span className="font-semibold">{attendanceList.length}</span> records
-            {hasActiveFilters && <span className="text-teal-600 ml-2">(filtered)</span>}
+            Showing{" "}
+            <span className="font-semibold">
+              {filteredAttendanceList.length}
+            </span>{" "}
+            of <span className="font-semibold">{attendanceList.length}</span>{" "}
+            records
+            {hasActiveFilters && (
+              <span className="text-teal-600 ml-2">(filtered)</span>
+            )}
           </p>
         </div>
 
@@ -316,9 +483,10 @@ export default function Attendance() {
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-bold text-gray-800">Attendance Log</h2>
-            <p className="text-gray-600 text-sm mt-1">All recorded student attendance entries.</p>
+            <p className="text-gray-600 text-sm mt-1">
+              All recorded student attendance entries.
+            </p>
           </div>
-          
           {loading ? (
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-cyan-600 border-opacity-50"></div>
@@ -332,13 +500,14 @@ export default function Attendance() {
             <div className="text-center py-16 px-6">
               <span className="text-6xl text-gray-300 mb-4 block">📋</span>
               <h3 className="text-xl font-medium text-gray-900 mb-1">
-                {hasActiveFilters ? "No Attendance Records Match Your Filters" : "No Attendance Records Found"}
+                {hasActiveFilters
+                  ? "No Attendance Records Match Your Filters"
+                  : "No Attendance Records Found"}
               </h3>
               <p className="text-gray-500">
-                {hasActiveFilters 
-                  ? "Try adjusting your filters or clear them to see all records." 
-                  : "Click 'Add Record' to create the first entry."
-                }
+                {hasActiveFilters
+                  ? "Try adjusting your filters or clear them to see all records."
+                  : "Click 'Add Record' to create the first entry."}
               </p>
               {!hasActiveFilters && (
                 <button
@@ -358,11 +527,11 @@ export default function Attendance() {
           )}
         </div>
       </div>
-      
+
       {/* --- Modal --- */}
       {modalOpen && (
         <AttendanceModal
-          key={selectedAttendance?._id || "new-attendance"}
+          key={selectedAttendance?._id || selectedAttendance?.id || "new-attendance"}
           isOpen={modalOpen}
           onClose={handleCloseModal}
           students={students}
@@ -380,17 +549,17 @@ export default function Attendance() {
 // --- Reusable StatCard Component ---
 const StatCard = ({ icon, title, value, color }) => {
   const colors = {
-    blue: 'border-blue-500 bg-blue-100 text-blue-600',
-    green: 'border-green-500 bg-green-100 text-green-600',
-    purple: 'border-purple-500 bg-purple-100 text-purple-600',
-    yellow: 'border-yellow-500 bg-yellow-100 text-yellow-600',
+    blue: "border-blue-500 bg-blue-100 text-blue-600",
+    green: "border-green-500 bg-green-100 text-green-600",
+    purple: "border-purple-500 bg-purple-100 text-purple-600",
+    yellow: "border-yellow-500 bg-yellow-100 text-yellow-600",
   };
   return (
-    <div className={`bg-white rounded-xl shadow p-6 border-l-4 ${colors[color]}`}>
+    <div
+      className={`bg-white rounded-xl shadow p-6 border-l-4 ${colors[color]}`}
+    >
       <div className="flex items-center">
-        <div className={`p-3 rounded-lg ${colors[color]} mr-4`}>
-          {icon}
-        </div>
+        <div className={`p-3 rounded-lg ${colors[color]} mr-4`}>{icon}</div>
         <div>
           <p className="text-gray-500 text-sm">{title}</p>
           <p className="text-2xl font-bold text-gray-900">{value}</p>
