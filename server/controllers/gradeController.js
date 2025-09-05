@@ -101,9 +101,9 @@ export const getAllGrades = async (req, res) => {
  */
 export const createGrade = async (req, res) => {
   try {
-    const { student, department, semester, course, term, academicYear, assessments, remarks, creditHours } = req.body;
+    const { student, department, year, semester, course, term, academicYear, assessments, remarks, creditHours } = req.body;
 
-    if (!student || !semester || !department || !course || !term || !academicYear || !creditHours) {
+    if (!student || !year || !semester || !department || !course || !term || !academicYear || !creditHours) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -127,6 +127,7 @@ export const createGrade = async (req, res) => {
       student,
       department,
       course,
+      year, 
       semester,
       term,
       academicYear,

@@ -3,6 +3,7 @@ import axios from "../../api/axios";
 import facultyList from "../helper/Faculties";
 import { X, User, GraduationCap, MapPin, Phone, DollarSign, Badge, Accessibility, Trash2, Plus, Loader, Users, AlertTriangle, Check } from 'lucide-react';
 import toast from "react-hot-toast";
+import { FaThermometer } from "react-icons/fa";
 
 export default function StudentFormModal({
   isOpen,
@@ -27,6 +28,8 @@ export default function StudentFormModal({
 
   const [formData, setFormData] = useState({
     name: "",
+    father_name: "",
+    mother_name: "",
     email: "",
     phone: "",
     program: "",
@@ -143,6 +146,8 @@ export default function StudentFormModal({
   // Reset form when adding a new student
   setFormData({
     name: "",
+    father_name: "",
+    mother_name: "",
     email: "",
     phone: "",
     program: "",
@@ -342,11 +347,38 @@ export default function StudentFormModal({
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
-                      placeholder="e.g., John David Smith"
+                      placeholder="e.g., Anisur Rahaman"
                       className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                       required
                     />
                   </div>
+                  {/* Father's Name */}
+                  <div>
+                    <label className="block mb-1 font-medium text-gray-700">Father's Name*</label>
+                    <input
+                      type="text"
+                      name="father_name"
+                      value={formData.father_name}
+                      onChange={handleChange}
+                      placeholder="e.g., Moktar"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      required
+                    />
+                  </div>
+                  {/* Mother's Name */}
+                  <div>
+                    <label className="block mb-1 font-medium text-gray-700">Mother's Name*</label>
+                    <input
+                      type="text"
+                      name="mother_name"
+                      value={formData.mother_name}
+                      onChange={handleChange}
+                      placeholder="e.g., Jane Kulsuma Khatun"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      required
+                    />
+                  </div>
+ 
                   {/* Email */}
                   <div>
                     <label className="block mb-1 font-medium text-gray-700">Email*</label>

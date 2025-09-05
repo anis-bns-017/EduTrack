@@ -9,7 +9,7 @@ const teacherSchema = new mongoose.Schema(
     employeeId: {
       type: String,
       required: [true, "Employee ID is required"],
-      unique: true, // This creates an index automatically
+      unique: true,
       trim: true,
       uppercase: true,
       validate: {
@@ -67,7 +67,7 @@ const teacherSchema = new mongoose.Schema(
     email: {
       type: String,
       required: [true, "Email is required"],
-      unique: true, // This creates an index automatically
+      unique: true,
       lowercase: true,
       validate: [validator.isEmail, "Please provide a valid email"],
     },
@@ -152,15 +152,94 @@ const teacherSchema = new mongoose.Schema(
       personal: { type: Number, default: 5 },
     },
     
-    // Academic Information
-    qualification: {
-      type: String,
-      required: [true, "Qualification is required"],
-      enum: {
-        values: ["PhD", "MSc", "MBA", "MA", "MPhil", "BSc", "BA", "Other"],
-        message: "Qualification is either: PhD, MSc, MBA, MA, MPhil, BSc, BA, Other",
+    // Enhanced Academic Qualifications
+    qualifications: [{
+      degree: {
+        type: String,
+        required: true,
+        enum: [
+          "High School", "Associate", "Bachelor", "Master", "Doctorate", 
+          "Postdoctoral", "Diploma", "Certificate", "Other"
+        ]
       },
-    },
+      field: {
+        type: String,
+        required: true,
+        trim: true
+      },
+      institution: {
+        type: String,
+        required: true,
+        trim: true
+      },
+      year: {
+        type: Number,
+        required: true,
+        min: 1900,
+        max: new Date().getFullYear()
+      },
+      country: {
+        type: String,
+        trim: true
+      },
+      grade: {
+        type: String,
+        trim: true
+      },
+      thesisTitle: String,
+      supervisor: String,
+      isHighest: {
+        type: Boolean,
+        default: false
+      }
+    }],
+    
+    // Certifications and Professional Development
+    certifications: [{
+      name: {
+        type: String,
+        required: true
+      },
+      issuingOrganization: {
+        type: String,
+        required: true
+      },
+      issueDate: Date,
+      expirationDate: Date,
+      credentialID: String,
+      credentialURL: String
+    }],
+    
+    // Professional Development and Training
+    professionalDevelopment: [{
+      title: {
+        type: String,
+        required: true
+      },
+      provider: String,
+      hours: Number,
+      completionDate: Date,
+      description: String
+    }],
+    
+    // Teaching Credentials and Licenses
+    teachingCredentials: [{
+      type: {
+        type: String,
+        required: true,
+        enum: ["State License", "National Board", "Subject Specific", "International", "Other"]
+      },
+      credentialId: String,
+      issuingAuthority: String,
+      issueDate: Date,
+      expirationDate: Date,
+      status: {
+        type: String,
+        enum: ["Active", "Expired", "Pending", "Suspended"],
+        default: "Active"
+      }
+    }],
+    
     specialization: {
       type: [String],
       required: [true, "Specialization is required"],
@@ -172,6 +251,16 @@ const teacherSchema = new mongoose.Schema(
       journal: String,
       year: Number,
       link: String,
+      type: {
+        type: String,
+        enum: ["Journal", "Conference", "Book", "Chapter", "Thesis", "Other"]
+      },
+      authors: [String],
+      publisher: String,
+      volume: String,
+      issue: String,
+      pages: String,
+      doi: String
     }],
     coursesTeaching: [{
       type: mongoose.Schema.Types.ObjectId,
@@ -208,6 +297,9 @@ const teacherSchema = new mongoose.Schema(
       name: String,
       position: String,
       duration: String,
+      startDate: Date,
+      endDate: Date,
+      responsibilities: [String]
     }],
     
     // Administrative Information
@@ -249,12 +341,18 @@ const teacherSchema = new mongoose.Schema(
       researchGate: String,
       googleScholar: String,
       website: String,
+      github: String,
+      orcid: String
     },
     awards: [{
       title: String,
       organization: String,
       year: Number,
       description: String,
+      category: {
+        type: String,
+        enum: ["Teaching", "Research", "Service", "Leadership", "Other"]
+      }
     }],
     
     // Financial Information (Optional - based on requirements)
@@ -308,8 +406,13 @@ teacherSchema.virtual("isAccountLocked").get(function () {
   return !!(this.lockUntil && this.lockUntil > Date.now());
 });
 
-// Indexes - REMOVED DUPLICATES for employeeId and email
-// Only define indexes that aren't already created by 'unique: true'
+// Virtual for highest qualification
+teacherSchema.virtual("highestQualification").get(function () {
+  const highest = this.qualifications.find(q => q.isHighest);
+  return highest ? `${highest.degree} in ${highest.field}` : "Not specified";
+});
+
+// Indexes
 teacherSchema.index({ department: 1 });
 teacherSchema.index({ faculty: 1 });
 teacherSchema.index({ designation: 1 });
@@ -322,13 +425,19 @@ teacherSchema.index({ department: 1, status: 1 });
 teacherSchema.index({ faculty: 1, designation: 1 });
 teacherSchema.index({ lastName: 1, firstName: 1 });
 
+// Index for qualifications
+teacherSchema.index({ "qualifications.degree": 1 });
+teacherSchema.index({ "qualifications.field": 1 });
+teacherSchema.index({ "qualifications.institution": 1 });
+
 // Text search index for searching across multiple fields
 teacherSchema.index({
   firstName: "text",
   lastName: "text",
   email: "text",
   specialization: "text",
-  researchInterests: "text"
+  researchInterests: "text",
+  "qualifications.field": "text"
 });
 
 // Password hashing middleware
@@ -397,6 +506,11 @@ teacherSchema.statics.getTeachersByDepartment = function (departmentId) {
 
 teacherSchema.statics.getTeachersByStatus = function (status) {
   return this.find({ status: status });
+};
+
+// Method to get teachers by highest qualification
+teacherSchema.statics.getTeachersByQualification = function (degree) {
+  return this.find({ "qualifications.degree": degree, "qualifications.isHighest": true });
 };
 
 const Teacher = mongoose.model("Teacher", teacherSchema);

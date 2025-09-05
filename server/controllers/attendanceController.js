@@ -38,7 +38,7 @@ export const getAttendanceReport = async (req, res) => {
  */
 export const getAllAttendance = asyncHandler(async (req, res) => {
   const records = await Attendance.find()
-    .populate("student", "name rollNumber")
+    .populate("student", "name")
     .populate("department", "name")
     .populate("course", "name code")
     .sort({ lectureDate: -1 });

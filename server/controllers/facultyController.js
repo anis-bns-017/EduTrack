@@ -1,4 +1,3 @@
-// controllers/facultyController.js
 import mongoose from "mongoose";
 import Faculty from "../models/Faculty.js";
 import Department from "../models/Department.js";
@@ -32,8 +31,8 @@ export const createFaculty = async (req, res) => {
     const {
       name,
       code,
-      dean, // String (dean's name)
-      departments, // Array of Department ObjectIds (optional)
+      dean,
+      departments,
       establishedYear,
       contactEmail,
       contactPhone,
@@ -41,11 +40,12 @@ export const createFaculty = async (req, res) => {
       description,
       status,
     } = req.body;
+    console.log("Creating faculty:", name, code, dean);
 
-    if (!name || !code) {
+    if (!name || !code || !dean) {
       return res
         .status(400)
-        .json({ message: "Both name and code are required." });
+        .json({ message: "Name, code, and dean are required fields." });
     }
 
     // Validate departments if provided
@@ -62,15 +62,15 @@ export const createFaculty = async (req, res) => {
     }
 
     const faculty = await Faculty.create({
-      name,
-      code,
-      dean, // Store as string directly
+      name: name.trim(),
+      code: code.toUpperCase().trim(),
+      dean: dean.trim(),
       departments: departmentIds,
       establishedYear,
-      contactEmail,
-      contactPhone,
-      officeLocation,
-      description,
+      contactEmail: contactEmail ? contactEmail.toLowerCase().trim() : undefined,
+      contactPhone: contactPhone ? contactPhone.trim() : undefined,
+      officeLocation: officeLocation ? officeLocation.trim() : undefined,
+      description: description ? description.trim() : undefined,
       status,
     });
 
@@ -91,6 +91,7 @@ export const createFaculty = async (req, res) => {
 export const getFaculties = async (req, res) => {
   try {
     const { q, status } = req.query;
+ 
     const filter = {};
 
     if (q) {
@@ -98,18 +99,20 @@ export const getFaculties = async (req, res) => {
         { name: { $regex: q, $options: "i" } },
         { code: { $regex: q, $options: "i" } },
         { description: { $regex: q, $options: "i" } },
-        { dean: { $regex: q, $options: "i" } }, // Add search by dean name
+        { dean: { $regex: q, $options: "i" } },
+        { officeLocation: { $regex: q, $options: "i" } }, // Added search by office location
       ];
     }
 
     if (status) {
-      filter.status = new RegExp(`^${status}$`, "i"); // case-insensitive match
+      filter.status = new RegExp(`^${status}$`, "i");
     }
 
-    const faculties = await Faculty.find(filter)
+    const faculties = await Faculty.find()
       .sort({ name: 1 })
       .populate("departments", "name code headOfDepartment")
       .lean();
+
 
     return res.json(faculties);
   } catch (error) {
@@ -118,7 +121,6 @@ export const getFaculties = async (req, res) => {
       .json({ message: "Server error", error: error.message });
   }
 };
-
 
 /* --------------------------- GET BY ID ----------------------------- */
 // GET /api/faculties/:id
@@ -153,6 +155,15 @@ export const updateFaculty = async (req, res) => {
 
     const payload = { ...req.body };
 
+    // Apply schema-defined transformations
+    if (payload.name) payload.name = payload.name.trim();
+    if (payload.code) payload.code = payload.code.toUpperCase().trim();
+    if (payload.dean) payload.dean = payload.dean.trim();
+    if (payload.contactEmail) payload.contactEmail = payload.contactEmail.toLowerCase().trim();
+    if (payload.contactPhone) payload.contactPhone = payload.contactPhone.trim();
+    if (payload.officeLocation) payload.officeLocation = payload.officeLocation.trim();
+    if (payload.description) payload.description = payload.description.trim();
+
     // Normalize departments field
     if (payload.hasOwnProperty("departments")) {
       const departmentIds = normalizeObjectIds(payload.departments);
@@ -166,7 +177,7 @@ export const updateFaculty = async (req, res) => {
             .json({ message: "One or more departments were not found." });
         }
       }
-      payload.departments = departmentIds; // can be empty array to clear
+      payload.departments = departmentIds;
     }
 
     const updated = await Faculty.findByIdAndUpdate(id, payload, {
@@ -193,6 +204,18 @@ export const deleteFaculty = async (req, res) => {
     const { id } = req.params;
     if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid faculty ID." });
+    }
+
+    // Check if faculty has departments before deletion
+    const faculty = await Faculty.findById(id);
+    if (!faculty) {
+      return res.status(404).json({ message: "Faculty not found." });
+    }
+    
+    if (faculty.departments && faculty.departments.length > 0) {
+      return res.status(400).json({ 
+        message: "Cannot delete faculty with associated departments. Please remove departments first." 
+      });
     }
 
     const deleted = await Faculty.findByIdAndDelete(id);

@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import StudentFormModal from "../components/StudentFormModal";
 import axios from "../../api/axios";
 import { toast } from "react-hot-toast";
 import { format } from "date-fns";
 import facultyList from "../helper/Faculties";
-
 import {
   Plus,
   Search,
@@ -26,7 +25,17 @@ import {
   Calendar,
   MapPin,
   GraduationCap,
+  BarChart3,
+  PieChart,
+  Activity,
+  Target,
+  Zap,
+  Award,
+  Clock,
+  BookOpen,
+  ShieldAlert,
 } from "lucide-react";
+import StudentDetailsModal from "./StudentDetailsModal";
 
 export default function Students() {
   const [students, setStudents] = useState([]);
@@ -57,6 +66,74 @@ export default function Students() {
     hasFinancialAid: "",
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [activeFiltersCount, setActiveFiltersCount] = useState(0);
+
+  // Statistics state
+  const [statistics, setStatistics] = useState({
+    total: 0,
+    active: 0,
+    averageGPA: 0,
+    departments: 0,
+    byProgram: {},
+    byStatus: {},
+    byYear: {},
+    byGender: {},
+    growthRate: 0,
+    totalCredits: 0,
+  });
+
+  // Calculate statistics
+  const calculateStatistics = useCallback((studentData) => {
+    const stats = {
+      total: studentData.length,
+      active: studentData.filter((s) => s.status === "Active").length,
+      averageGPA:
+        studentData.length > 0
+          ? studentData.reduce((sum, s) => sum + (s.gpa || 0), 0) /
+            studentData.length
+          : 0,
+      departments: new Set(
+        studentData
+          .map((s) => s.department?.name || s.department)
+          .filter(Boolean)
+      ).size,
+      totalCredits: studentData.reduce(
+        (sum, s) => sum + (s.totalCreditsEarned || 0),
+        0
+      ),
+      byProgram: {},
+      byStatus: {},
+      byYear: {},
+      byGender: {},
+      growthRate: Math.floor(Math.random() * 20) + 8, // Mock growth rate
+    };
+
+    // Count by various categories
+    studentData.forEach((student) => {
+      // By program
+      if (student.program) {
+        stats.byProgram[student.program] =
+          (stats.byProgram[student.program] || 0) + 1;
+      }
+      // By status
+      if (student.status) {
+        stats.byStatus[student.status] =
+          (stats.byStatus[student.status] || 0) + 1;
+      }
+      // By year
+      if (student.yearOfStudy) {
+        stats.byYear[student.yearOfStudy] =
+          (stats.byYear[student.yearOfStudy] || 0) + 1;
+      }
+      // By gender
+      if (student.gender) {
+        stats.byGender[student.gender] =
+          (stats.byGender[student.gender] || 0) + 1;
+      }
+    });
+
+    setStatistics(stats);
+  }, []);
 
   // Fetch initial data
   useEffect(() => {
@@ -67,12 +144,12 @@ export default function Students() {
           axios.get("/students?limit=1000"),
           axios.get("/departments"),
         ]);
-
-        console.log("okay: ", studentsRes);
-        setStudents(studentsRes.data.data || []);
-        setFilteredStudents(studentsRes.data.data || []);
+        const studentData = studentsRes.data.data || [];
+        setStudents(studentData);
+        setFilteredStudents(studentData);
         setDepartments(deptsRes.data.data || []);
         setFacultyAdvisors(facultyList);
+        calculateStatistics(studentData);
       } catch (err) {
         setError(err.response?.data?.message || err.message);
       } finally {
@@ -80,7 +157,7 @@ export default function Students() {
       }
     };
     fetchData();
-  }, []);
+  }, [calculateStatistics]);
 
   // Apply filters
   useEffect(() => {
@@ -101,7 +178,6 @@ export default function Students() {
     // Apply each filter
     Object.entries(filters).forEach(([key, value]) => {
       if (!value) return;
-
       switch (key) {
         case "department":
           result = result.filter(
@@ -131,6 +207,15 @@ export default function Students() {
 
     setFilteredStudents(result);
   }, [searchTerm, filters, students]);
+
+  // Calculate active filters count
+  useEffect(() => {
+    const count =
+      Object.values(filters).filter(
+        (value) => value !== "" && value !== null && value !== undefined
+      ).length + (searchTerm ? 1 : 0);
+    setActiveFiltersCount(count);
+  }, [filters, searchTerm]);
 
   const handleAddClick = () => {
     setEditStudent(null);
@@ -205,6 +290,7 @@ export default function Students() {
   const uniqueValues = (field) => [
     ...new Set(students.map((s) => s[field]).filter(Boolean)),
   ];
+
   const statusOptions = [
     "Active",
     "Inactive",
@@ -213,6 +299,7 @@ export default function Students() {
     "Suspended",
     "On Leave",
   ];
+
   const programTypeOptions = [
     "Undergraduate",
     "Graduate",
@@ -220,537 +307,531 @@ export default function Students() {
     "Diploma",
     "Certificate",
   ];
-  const academicStandingOptions = ["Good", "Probation", "Warning", "Suspended"];
 
-  // Student detail fields configuration
-  const studentDetailSections = [
-    {
-      title: "Personal Information",
-      fields: [
-        { key: "name", label: "Full Name" },
-        { key: "email", label: "Email" },
-        { key: "phone", label: "Phone" },
-        {
-          key: "dateOfBirth",
-          label: "Date of Birth",
-          format: (val) => (val ? format(new Date(val), "PPP") : "N/A"),
-        },
-        { key: "gender", label: "Gender" },
-        { key: "bloodGroup", label: "Blood Group" },
-        { key: "nationality", label: "Nationality" },
-        {
-          key: "identification",
-          label: "ID",
-          format: (id) => (id ? `${id.type}: ${id.number}` : "N/A"),
-        },
-      ],
-    },
-    {
-      title: "Academic Information",
-      fields: [
-        { key: "studentId", label: "Student ID" },
-        { key: "rollNumber", label: "Roll Number" },
-        { key: "program", label: "Program" },
-        { key: "programType", label: "Program Type" },
-        {
-          key: "department",
-          label: "Department",
-          format: (dept) => dept?.name || dept || "N/A",
-        },
-        {
-          key: "facultyAdvisor",
-          label: "Faculty Advisor",
-          format: (advisor) => advisor?.name || advisor || "N/A",
-        },
-        { key: "yearOfStudy", label: "Year of Study" },
-        { key: "semester", label: "Semester" },
-        { key: "gpa", label: "GPA" },
-        { key: "totalCreditsEarned", label: "Credits Earned" },
-        { key: "academicStanding", label: "Academic Standing" },
-        { key: "status", label: "Status" },
-      ],
-    },
-    {
-      title: "Contact Information",
-      fields: [
-        {
-          key: "address",
-          label: "Address",
-          format: (addr) =>
-            addr
-              ? `${addr.street}, ${addr.city}, ${addr.state} ${addr.postalCode}, ${addr.country}`
-              : "N/A",
-        },
-        { key: "guardianName", label: "Guardian Name" },
-        { key: "guardianPhone", label: "Guardian Phone" },
-      ],
-    },
-    {
-      title: "Financial Information",
-      fields: [
-        {
-          key: "financialInformation.tuitionBalance",
-          label: "Tuition Balance",
-          format: (val) => (val ? `$${val.toFixed(2)}` : "N/A"),
-        },
-        {
-          key: "financialInformation.financialAid",
-          label: "Financial Aid",
-          format: (val) => (val ? "Yes" : "No"),
-        },
-        {
-          key: "financialInformation.scholarships",
-          label: "Scholarships",
-          format: (sch) => (sch?.length ? sch.join(", ") : "None"),
-        },
-      ],
-    },
-  ];
+  const academicStandingOptions = ["Good", "Probation", "Warning", "Suspended"];
 
   if (loading)
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gradient-to-r from-indigo-500 to-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading students...</p>
+        </div>
       </div>
     );
 
   if (error)
     return (
-      <div className="bg-red-50 border-l-4 border-red-500 p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg
-              className="h-5 w-5 text-red-500"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clipRule="evenodd"
-              />
-            </svg>
+      <div className="flex flex-col items-center justify-center h-screen p-6 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+        <div className="text-center max-w-md">
+          import {ShieldAlert} from "lucide-react";
+          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+            <ShieldAlert className="h-10 w-10 text-red-600" />
           </div>
-          <div className="ml-3">
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">
+            Error Loading Students
+          </h3>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header Section */}
-        <div className="relative overflow-hidden bg-white rounded-2xl shadow-xl border border-white/20 backdrop-blur-sm mb-8">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5"></div>
-          <div className="relative p-8">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg">
-                  <Users className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                    Student Management
-                  </h1>
-                  <p className="text-gray-600 mt-2 text-lg">
-                    Manage and track all student records with ease
-                  </p>
-                </div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 md:p-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl shadow-lg">
+                <Users className="h-6 w-6 md:h-8 md:w-8 text-white" />
               </div>
+              <div>
+                <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 to-indigo-700 bg-clip-text text-transparent">
+                  Student Management
+                </h1>
+                <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-600 font-medium hidden md:block">
+                  Comprehensive student information and academic tracking system
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 md:mt-0">
               <button
                 onClick={handleAddClick}
-                className="group relative px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-2"
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-xl shadow-lg text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-200" />
-                <span className="font-semibold">Add Student</span>
+                <Plus className="mr-2 h-5 w-5" />
+                Add New Student
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 mt-4 md:mt-8">
+        {/* Enhanced Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+          {/* Total Students Card */}
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full opacity-10 blur-xl"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm font-medium text-gray-600 mb-1">
+                    Total Students
+                  </p>
+                  <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                    {statistics.total}
+                  </p>
+                  <div className="flex items-center mt-2 text-xs md:text-sm text-green-600">
+                    <TrendingUp className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                    <span>+{statistics.growthRate}% from last semester</span>
+                  </div>
+                </div>
+                <div className="p-3 md:p-4 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl shadow-lg">
+                  <Users className="h-6 w-6 md:h-8 md:w-8 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Active Students Card */}
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full opacity-10 blur-xl"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm font-medium text-gray-600 mb-1">
+                    Active Students
+                  </p>
+                  <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                    {statistics.active}
+                  </p>
+                  <div className="flex items-center mt-2">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2 mr-2">
+                      <div
+                        className="bg-gradient-to-r from-emerald-500 to-green-600 h-2 rounded-full"
+                        style={{
+                          width: `${
+                            (statistics.active / statistics.total) * 100 || 0
+                          }%`,
+                        }}
+                      ></div>
+                    </div>
+                    <span className="text-xs md:text-sm text-gray-600">
+                      {Math.round(
+                        (statistics.active / statistics.total) * 100 || 0
+                      )}
+                      %
+                    </span>
+                  </div>
+                </div>
+                <div className="p-3 md:p-4 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl shadow-lg">
+                  <UserCheck className="h-6 w-6 md:h-8 md:w-8 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Average GPA Card */}
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-500 to-violet-600 rounded-full opacity-10 blur-xl"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm font-medium text-gray-600 mb-1">
+                    Average GPA
+                  </p>
+                  <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                    {statistics.averageGPA.toFixed(2)}
+                  </p>
+                  <div className="flex items-center mt-2 text-xs md:text-sm text-purple-600">
+                    <Award className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                    <span>Academic excellence</span>
+                  </div>
+                </div>
+                <div className="p-3 md:p-4 bg-gradient-to-r from-purple-500 to-violet-600 rounded-xl shadow-lg">
+                  <GraduationCap className="h-6 w-6 md:h-8 md:w-8 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Departments Card */}
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-full opacity-10 blur-xl"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm font-medium text-gray-600 mb-1">
+                    Departments
+                  </p>
+                  <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                    {statistics.departments}
+                  </p>
+                  <div className="flex items-center mt-2 text-xs md:text-sm text-orange-600">
+                    <Building2 className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                    <span>Academic units</span>
+                  </div>
+                </div>
+                <div className="p-3 md:p-4 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl shadow-lg">
+                  <Target className="h-6 w-6 md:h-8 md:w-8 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Status Distribution */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+          {/* Status Distribution */}
+          <div className="lg:col-span-2 bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100">
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <h3 className="text-lg md:text-xl font-semibold text-gray-900">
+                Status Distribution
+              </h3>
+              <PieChart className="h-5 w-5 md:h-6 md:w-6 text-gray-400" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+              {Object.entries(statistics.byStatus).map(([status, count]) => (
+                <div
+                  key={status}
+                  className="text-center p-3 md:p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  <div
+                    className={`w-8 h-8 md:w-10 md:h-10 mx-auto mb-2 rounded-full flex items-center justify-center ${
+                      status === "Active"
+                        ? "bg-emerald-100 text-emerald-600"
+                        : status === "Inactive"
+                        ? "bg-gray-100 text-gray-600"
+                        : status === "Graduated"
+                        ? "bg-blue-100 text-blue-600"
+                        : status === "Transferred"
+                        ? "bg-purple-100 text-purple-600"
+                        : status === "Suspended"
+                        ? "bg-red-100 text-red-600"
+                        : "bg-yellow-100 text-yellow-600"
+                    }`}
+                  >
+                    <Users className="h-4 w-4 md:h-5 md:w-5" />
+                  </div>
+                  <p className="text-lg md:text-xl font-bold text-gray-900">
+                    {count}
+                  </p>
+                  <p className="text-xs md:text-sm text-gray-600">{status}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100">
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <h3 className="text-lg md:text-xl font-semibold text-gray-900">
+                Quick Actions
+              </h3>
+              <Zap className="h-5 w-5 md:h-6 md:w-6 text-gray-400" />
+            </div>
+            <div className="space-y-3">
+              <button
+                onClick={handleAddClick}
+                className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-lg"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add New Student
+              </button>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl hover:from-gray-600 hover:to-gray-700 transition-all duration-200 shadow-lg"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                {showFilters ? "Hide" : "Show"} Filters
+              </button>
+              <button className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-lg">
+                <Download className="h-4 w-4 mr-2" />
+                Export Data
               </button>
             </div>
           </div>
         </div>
 
-        {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-          <div className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-blue-100">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-blue-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">
-                    Total Students
-                  </p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {students.length}
-                  </p>
-                  <p className="text-xs text-green-600 mt-1 flex items-center">
-                    <TrendingUp className="w-3 h-3 mr-1" />
-                    +12% from last month
-                  </p>
-                </div>
-                <div className="p-3 bg-blue-100 rounded-xl">
-                  <Users className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-              <div className="mt-4 h-2 bg-blue-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500"
-                  style={{ width: "75%" }}
-                ></div>
-              </div>
-            </div>
-          </div>
-
-          <div className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-green-100">
-            <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-green-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">
-                    Active Students
-                  </p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {students.filter((s) => s.status === "Active").length}
-                  </p>
-                  <p className="text-xs text-green-600 mt-1 flex items-center">
-                    <TrendingUp className="w-3 h-3 mr-1" />
-                    +8% from last month
-                  </p>
-                </div>
-                <div className="p-3 bg-green-100 rounded-xl">
-                  <UserCheck className="w-6 h-6 text-green-600" />
-                </div>
-              </div>
-              <div className="mt-4 h-2 bg-green-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full transition-all duration-500"
-                  style={{ width: "85%" }}
-                ></div>
-              </div>
-            </div>
-          </div>
-
-          <div className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-purple-100">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">
-                    Average GPA
-                  </p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {students.length > 0
-                      ? (
-                          students.reduce((sum, s) => sum + (s.gpa || 0), 0) /
-                          students.length
-                        ).toFixed(2)
-                      : "0.00"}
-                  </p>
-                  <div className="flex items-center mt-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className="w-3 h-3 text-yellow-400 fill-current"
-                      />
-                    ))}
-                    <span className="text-xs text-gray-500 ml-1">
-                      Excellent
-                    </span>
-                  </div>
-                </div>
-                <div className="p-3 bg-purple-100 rounded-xl">
-                  <GraduationCap className="w-6 h-6 text-purple-600" />
-                </div>
-              </div>
-              <div className="mt-4 h-2 bg-purple-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full transition-all duration-500"
-                  style={{ width: "90%" }}
-                ></div>
-              </div>
-            </div>
-          </div>
-
-          <div className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-orange-100">
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-orange-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">
-                    Departments
-                  </p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {
-                      [
-                        ...new Set(
-                          students
-                            .map((s) => s.department?.name || s.department)
-                            .filter(Boolean)
-                        ),
-                      ].length
-                    }
-                  </p>
-                  <p className="text-xs text-orange-600 mt-1 flex items-center">
-                    <Building2 className="w-3 h-3 mr-1" />
-                    Across campus
-                  </p>
-                </div>
-                <div className="p-3 bg-orange-100 rounded-xl">
-                  <Building2 className="w-6 h-6 text-orange-600" />
-                </div>
-              </div>
-              <div className="mt-4 h-2 bg-orange-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500"
-                  style={{ width: "65%" }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Enhanced Search and Filters */}
-        <div className="bg-white rounded-2xl shadow-xl border border-white/20 backdrop-blur-sm mb-8 overflow-hidden">
-          <div className="p-6 bg-gradient-to-r from-gray-50 to-blue-50/30">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-              <div className="flex-1 max-w-2xl">
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400 group-hover:text-blue-500 transition-colors duration-200" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search students by name, ID, email..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="block w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl leading-5 bg-white/70 backdrop-blur-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-lg"
-                  />
+        <div className="bg-white shadow-lg md:shadow-xl rounded-xl md:rounded-2xl border border-gray-100 mb-4 md:mb-8 overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 md:px-6 py-3 md:py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 md:space-x-3">
+                <div className="p-1.5 md:p-2 bg-indigo-100 rounded-lg">
+                  <Search className="h-4 w-4 md:h-5 md:w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-base md:text-lg font-semibold text-gray-900">
+                    Search & Filter Students
+                  </h3>
+                  <p className="text-xs md:text-sm text-gray-600">
+                    {activeFiltersCount > 0
+                      ? `${activeFiltersCount} filter${
+                          activeFiltersCount > 1 ? "s" : ""
+                        } applied`
+                      : "Search by name, ID, email, or apply filters"}
+                  </p>
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 md:space-x-3">
+                {activeFiltersCount > 0 && (
+                  <button
+                    onClick={clearFilters}
+                    className="inline-flex items-center px-2 py-1 md:px-3 md:py-1.5 text-xs md:text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200"
+                  >
+                    <X className="mr-1 h-3 w-3 md:h-4 md:w-4" />
+                    Clear All
+                  </button>
+                )}
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`inline-flex items-center px-6 py-3 border-2 border-gray-200 shadow-lg text-sm font-semibold rounded-xl transition-all duration-200 ${
-                    showFilters
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300"
-                  }`}
+                  className="inline-flex items-center px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg transition-colors duration-200"
                 >
-                  <Filter className="w-5 h-5 mr-2" />
-                  {showFilters ? "Hide Filters" : "Show Filters"}
+                  {showFilters ? "Hide" : "Show"} Filters
                   <ChevronDown
-                    className={`w-4 h-4 ml-2 transition-transform duration-200 ${
+                    className={`ml-1 md:ml-2 h-3 w-3 md:h-4 md:w-4 transition-transform duration-200 ${
                       showFilters ? "rotate-180" : ""
                     }`}
                   />
                 </button>
-                {Object.values(filters).some(Boolean) && (
+              </div>
+            </div>
+          </div>
+
+          {/* Animated Search Content */}
+          <div
+            className={`transition-all duration-300 ease-in-out ${
+              showFilters ? "max-h-screen opacity-100" : "max-h-0 opacity-0"
+            } overflow-hidden`}
+          >
+            <div className="p-4 md:p-6">
+              {/* Search Bar */}
+              <div className="relative max-w-3xl mx-auto mb-6">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search students by name, ID, email, or roll number..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="block w-full pl-10 pr-10 md:pl-12 md:pr-16 py-3 md:py-4 text-base md:text-lg border-2 border-gray-200 rounded-xl md:rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white"
+                />
+                {searchTerm && (
                   <button
-                    onClick={clearFilters}
-                    className="inline-flex items-center px-6 py-3 border-2 border-red-200 shadow-lg text-sm font-semibold rounded-xl text-red-700 bg-red-50 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
+                    onClick={() => setSearchTerm("")}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   >
-                    <X className="w-4 h-4 mr-2" />
-                    Clear All
+                    <X className="h-4 w-4 md:h-5 md:w-5 text-gray-400 hover:text-gray-600" />
                   </button>
                 )}
               </div>
-            </div>
 
-            {showFilters && (
-              <div className="mt-8 p-6 bg-white rounded-xl border border-gray-100 shadow-inner">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Filter className="w-5 h-5 mr-2 text-blue-600" />
-                  Filter Options
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {/* Enhanced filter inputs with better styling */}
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="program"
-                      className="block text-sm font-semibold text-gray-700"
-                    >
-                      Program
-                    </label>
-                    <select
-                      id="program"
-                      name="program"
-                      value={filters.program}
-                      onChange={handleFilterChange}
-                      className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
-                    >
-                      <option value="">All Programs</option>
-                      {uniqueValues("program").map((program) => (
-                        <option key={program} value={program}>
-                          {program}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              {/* Filter Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                {/* Program Filter */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="program"
+                    className="block text-xs md:text-sm font-semibold text-gray-700"
+                  >
+                    Program
+                  </label>
+                  <select
+                    id="program"
+                    name="program"
+                    value={filters.program}
+                    onChange={handleFilterChange}
+                    className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-white"
+                  >
+                    <option value="">All Programs</option>
+                    {uniqueValues("program").map((program) => (
+                      <option key={program} value={program}>
+                        {program}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="programType"
-                      className="block text-sm font-semibold text-gray-700"
-                    >
-                      Program Type
-                    </label>
-                    <select
-                      id="programType"
-                      name="programType"
-                      value={filters.programType}
-                      onChange={handleFilterChange}
-                      className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
-                    >
-                      <option value="">All Types</option>
-                      {programTypeOptions.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Program Type Filter */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="programType"
+                    className="block text-xs md:text-sm font-semibold text-gray-700"
+                  >
+                    Program Type
+                  </label>
+                  <select
+                    id="programType"
+                    name="programType"
+                    value={filters.programType}
+                    onChange={handleFilterChange}
+                    className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-white"
+                  >
+                    <option value="">All Types</option>
+                    {programTypeOptions.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="department"
-                      className="block text-sm font-semibold text-gray-700"
-                    >
-                      Department
-                    </label>
-                    <select
-                      id="department"
-                      name="department"
-                      value={filters.department}
-                      onChange={handleFilterChange}
-                      className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
-                    >
-                      <option value="">All Departments</option>
-                      {departments.map((dept) => (
-                        <option key={dept._id} value={dept._id}>
-                          {dept.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Department Filter */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="department"
+                    className="block text-xs md:text-sm font-semibold text-gray-700"
+                  >
+                    Department
+                  </label>
+                  <select
+                    id="department"
+                    name="department"
+                    value={filters.department}
+                    onChange={handleFilterChange}
+                    className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-white"
+                  >
+                    <option value="">All Departments</option>
+                    {departments.map((dept) => (
+                      <option key={dept._id} value={dept._id}>
+                        {dept.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="status"
-                      className="block text-sm font-semibold text-gray-700"
-                    >
-                      Status
-                    </label>
-                    <select
-                      id="status"
-                      name="status"
-                      value={filters.status}
-                      onChange={handleFilterChange}
-                      className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
-                    >
-                      <option value="">All Statuses</option>
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Status Filter */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="status"
+                    className="block text-xs md:text-sm font-semibold text-gray-700"
+                  >
+                    Status
+                  </label>
+                  <select
+                    id="status"
+                    name="status"
+                    value={filters.status}
+                    onChange={handleFilterChange}
+                    className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-white"
+                  >
+                    <option value="">All Statuses</option>
+                    {statusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="yearOfStudy"
-                      className="block text-sm font-semibold text-gray-700"
-                    >
-                      Year of Study
-                    </label>
-                    <select
-                      id="yearOfStudy"
-                      name="yearOfStudy"
-                      value={filters.yearOfStudy}
-                      onChange={handleFilterChange}
-                      className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
-                    >
-                      <option value="">All Years</option>
-                      {[1, 2, 3, 4, 5, 6].map((year) => (
-                        <option key={year} value={year}>
-                          Year {year}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Year of Study Filter */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="yearOfStudy"
+                    className="block text-xs md:text-sm font-semibold text-gray-700"
+                  >
+                    Year of Study
+                  </label>
+                  <select
+                    id="yearOfStudy"
+                    name="yearOfStudy"
+                    value={filters.yearOfStudy}
+                    onChange={handleFilterChange}
+                    className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-white"
+                  >
+                    <option value="">All Years</option>
+                    {[1, 2, 3, 4, 5, 6].map((year) => (
+                      <option key={year} value={year}>
+                        Year {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="academicStanding"
-                      className="block text-sm font-semibold text-gray-700"
-                    >
-                      Academic Standing
-                    </label>
-                    <select
-                      id="academicStanding"
-                      name="academicStanding"
-                      value={filters.academicStanding}
-                      onChange={handleFilterChange}
-                      className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
-                    >
-                      <option value="">All Standings</option>
-                      {academicStandingOptions.map((standing) => (
-                        <option key={standing} value={standing}>
-                          {standing}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Academic Standing Filter */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="academicStanding"
+                    className="block text-xs md:text-sm font-semibold text-gray-700"
+                  >
+                    Academic Standing
+                  </label>
+                  <select
+                    id="academicStanding"
+                    name="academicStanding"
+                    value={filters.academicStanding}
+                    onChange={handleFilterChange}
+                    className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-white"
+                  >
+                    <option value="">All Standings</option>
+                    {academicStandingOptions.map((standing) => (
+                      <option key={standing} value={standing}>
+                        {standing}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="minGPA"
-                      className="block text-sm font-semibold text-gray-700"
-                    >
-                      Min GPA
-                    </label>
-                    <input
-                      type="number"
-                      id="minGPA"
-                      name="minGPA"
-                      min="0"
-                      max="4"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={filters.minGPA}
-                      onChange={handleFilterChange}
-                      className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    />
-                  </div>
+                {/* Min GPA Filter */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="minGPA"
+                    className="block text-xs md:text-sm font-semibold text-gray-700"
+                  >
+                    Min GPA
+                  </label>
+                  <input
+                    type="number"
+                    id="minGPA"
+                    name="minGPA"
+                    min="0"
+                    max="4"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={filters.minGPA}
+                    onChange={handleFilterChange}
+                    className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                  />
+                </div>
 
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="maxGPA"
-                      className="block text-sm font-semibold text-gray-700"
-                    >
-                      Max GPA
-                    </label>
-                    <input
-                      type="number"
-                      id="maxGPA"
-                      name="maxGPA"
-                      min="0"
-                      max="4"
-                      step="0.01"
-                      placeholder="4.00"
-                      value={filters.maxGPA}
-                      onChange={handleFilterChange}
-                      className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    />
-                  </div>
+                {/* Max GPA Filter */}
+                <div className="space-y-2">
+                  <label
+                    htmlFor="maxGPA"
+                    className="block text-xs md:text-sm font-semibold text-gray-700"
+                  >
+                    Max GPA
+                  </label>
+                  <input
+                    type="number"
+                    id="maxGPA"
+                    name="maxGPA"
+                    min="0"
+                    max="4"
+                    step="0.01"
+                    placeholder="4.00"
+                    value={filters.maxGPA}
+                    onChange={handleFilterChange}
+                    className="w-full p-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                  />
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Enhanced Results Summary */}
-        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-white rounded-xl shadow-lg border border-gray-100">
+        {/* Results Summary */}
+        <div className="mb-4 md:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-white rounded-xl shadow-lg border border-gray-100">
           <div className="flex items-center space-x-4">
             <div className="p-2 bg-blue-100 rounded-lg">
               <Users className="w-5 h-5 text-blue-600" />
@@ -788,60 +869,80 @@ export default function Students() {
         </div>
 
         {/* Enhanced Students Table */}
-        <div className="bg-white shadow-2xl rounded-2xl border border-white/20 backdrop-blur-sm overflow-hidden">
-          {filteredStudents.length === 0 ? (
-            <div className="text-center py-16 px-8">
-              <div className="max-w-md mx-auto">
-                <div className="p-4 bg-gray-100 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-                  <Frown className="w-10 h-10 text-gray-400" />
+        <div className="bg-white shadow-lg rounded-xl md:rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 md:px-6 py-3 md:py-5 border-b border-gray-100">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
+              <div className="flex items-center space-x-2 md:space-x-3">
+                <div className="p-1.5 md:p-2 bg-indigo-100 rounded-lg">
+                  <Users className="h-4 w-4 md:h-5 md:w-5 text-indigo-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  No students found
-                </h3>
-                <p className="text-gray-500 mb-8 text-lg">
-                  {Object.values(filters).some(Boolean)
-                    ? "Try adjusting your search criteria or filters to find students."
-                    : "Get started by adding your first student to the system."}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleAddClick}
-                  className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg font-semibold"
-                >
-                  <Plus className="w-6 h-6 mr-2" />
-                  Add Your First Student
-                </button>
+                <div>
+                  <h3 className="text-base md:text-lg font-semibold text-gray-900">
+                    Student Directory
+                  </h3>
+                  <p className="text-xs md:text-sm text-gray-600">
+                    {filteredStudents.length > 0
+                      ? `Displaying ${filteredStudents.length} of ${students.length} students`
+                      : "No students found matching your search criteria"}
+                  </p>
+                </div>
               </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+          </div>
+
+          <div className="overflow-x-auto">
+            {filteredStudents.length === 0 ? (
+              <div className="p-8 md:p-12 text-center">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="p-4 bg-gray-100 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                    <Frown className="w-10 h-10 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg md:text-xl font-medium text-gray-900 mb-2">
+                    No students found
+                  </h3>
+                  <p className="text-sm md:text-base text-gray-500 mb-6">
+                    {Object.values(filters).some(Boolean)
+                      ? "Try adjusting your search criteria or filters to find students."
+                      : "Get started by adding your first student to the system."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAddClick}
+                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-base font-semibold"
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    Add Your First Student
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Student
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Program
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Department
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Year/Semester
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       GPA
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    <th className="px-4 md:px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="bg-white divide-y divide-gray-200">
                   {filteredStudents.map((student, index) => (
                     <tr
                       key={student._id}
@@ -849,7 +950,7 @@ export default function Students() {
                         index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
                       }`}
                     >
-                      <td className="px-6 py-5">
+                      <td className="px-4 md:px-6 py-4">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
                             {student.profilePicture ? (
@@ -876,7 +977,7 @@ export default function Students() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="px-4 md:px-6 py-4">
                         <div className="text-sm font-semibold text-gray-900">
                           {student.program}
                         </div>
@@ -884,7 +985,7 @@ export default function Students() {
                           {student.programType}
                         </div>
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="px-4 md:px-6 py-4">
                         <div className="text-sm font-semibold text-gray-900 flex items-center">
                           <Building2 className="w-4 h-4 mr-2 text-gray-400" />
                           {student.department?.name ||
@@ -892,7 +993,7 @@ export default function Students() {
                             "N/A"}
                         </div>
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="px-4 md:px-6 py-4">
                         <div className="text-sm font-semibold text-gray-900 flex items-center">
                           <Calendar className="w-4 h-4 mr-2 text-gray-400" />
                           Year {student.yearOfStudy}
@@ -901,7 +1002,7 @@ export default function Students() {
                           Semester {student.semester}
                         </div>
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="px-4 md:px-6 py-4">
                         <div className="text-sm font-bold text-gray-900">
                           {student.gpa ? student.gpa.toFixed(2) : "N/A"}
                         </div>
@@ -909,45 +1010,45 @@ export default function Students() {
                           {student.academicStanding || "N/A"}
                         </div>
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="px-4 md:px-6 py-4">
                         <span
                           className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full shadow-sm
-                        ${
-                          student.status === "Active"
-                            ? "bg-green-100 text-green-800 border border-green-200"
-                            : ""
-                        }
-                        ${
-                          student.status === "Inactive"
-                            ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
-                            : ""
-                        }
-                        ${
-                          student.status === "Graduated"
-                            ? "bg-blue-100 text-blue-800 border border-blue-200"
-                            : ""
-                        }
-                        ${
-                          student.status === "Transferred"
-                            ? "bg-purple-100 text-purple-800 border border-purple-200"
-                            : ""
-                        }
-                        ${
-                          student.status === "Suspended"
-                            ? "bg-red-100 text-red-800 border border-red-200"
-                            : ""
-                        }
-                        ${
-                          student.status === "On Leave"
-                            ? "bg-gray-100 text-gray-800 border border-gray-200"
-                            : ""
-                        }
-                      `}
+                          ${
+                            student.status === "Active"
+                              ? "bg-green-100 text-green-800 border border-green-200"
+                              : ""
+                          }
+                          ${
+                            student.status === "Inactive"
+                              ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                              : ""
+                          }
+                          ${
+                            student.status === "Graduated"
+                              ? "bg-blue-100 text-blue-800 border border-blue-200"
+                              : ""
+                          }
+                          ${
+                            student.status === "Transferred"
+                              ? "bg-purple-100 text-purple-800 border border-purple-200"
+                              : ""
+                          }
+                          ${
+                            student.status === "Suspended"
+                              ? "bg-red-100 text-red-800 border border-red-200"
+                              : ""
+                          }
+                          ${
+                            student.status === "On Leave"
+                              ? "bg-gray-100 text-gray-800 border border-gray-200"
+                              : ""
+                          }
+                        `}
                         >
                           {student.status}
                         </span>
                       </td>
-                      <td className="px-6 py-5 text-right">
+                      <td className="px-4 md:px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
                           <button
                             onClick={() => handleViewDetails(student)}
@@ -976,350 +1077,32 @@ export default function Students() {
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
-        </div>
-
-        {/* Student Form Modal */}
-        <StudentFormModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setEditStudent(null);
-          }}
-          onSave={handleSaveStudent}
-          initialData={editStudent}
-          departments={departments}
-          facultyAdvisors={facultyAdvisors}
-        />
-
-        {/* Enhanced Student Details Modal */}
-        {detailsModalOpen && selectedStudentForDetails && (
-          <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex min-h-screen items-center justify-center p-4">
-              {/* Backdrop */}
-              <div
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-                onClick={() => setDetailsModalOpen(false)}
-              ></div>
-
-              {/* Modal */}
-              <div className="relative w-full max-w-6xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden">
-                {/* Modal Header */}
-                <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 px-6 py-6">
-                  <div className="flex justify-between items-center text-white">
-                    <div className="flex items-center space-x-4">
-                      {selectedStudentForDetails.profilePicture ? (
-                        <img
-                          src={selectedStudentForDetails.profilePicture}
-                          alt="Profile"
-                          className="h-14 w-14 rounded-full object-cover border-3 border-white/30 shadow-xl"
-                        />
-                      ) : (
-                        <div className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-xl font-bold border-3 border-white/30">
-                          {selectedStudentForDetails.name
-                            ?.charAt(0)
-                            ?.toUpperCase() || "S"}
-                        </div>
-                      )}
-                      <div>
-                        <h3 className="text-xl font-bold">
-                          {selectedStudentForDetails.name || "Student Details"}
-                        </h3>
-                        <div className="flex items-center mt-1 text-sm text-blue-100">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white/20 backdrop-blur-sm">
-                            {selectedStudentForDetails.studentId}
-                          </span>
-                          <span className="mx-2">•</span>
-                          <span>{selectedStudentForDetails.program}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDetailsModalOpen(false)}
-                      className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all duration-200 backdrop-blur-sm"
-                    >
-                      <X className="h-5 w-5 text-white" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Modal Content - Scrollable */}
-                <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
-                  <div className="px-6 py-6">
-                    {/* Quick Info Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100">
-                        <div className="flex items-center space-x-3">
-                          <Mail className="w-5 h-5 text-blue-500 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">
-                              Email
-                            </p>
-                            <p className="text-sm font-semibold text-gray-900 truncate">
-                              {selectedStudentForDetails.email ||
-                                "Not provided"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-xl border border-green-100">
-                        <div className="flex items-center space-x-3">
-                          <Phone className="w-5 h-5 text-green-500 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium text-green-600 uppercase tracking-wider">
-                              Phone
-                            </p>
-                            <p className="text-sm font-semibold text-gray-900 truncate">
-                              {selectedStudentForDetails.phone ||
-                                "Not provided"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-100">
-                        <div className="flex items-center space-x-3">
-                          <UserCheck className="w-5 h-5 text-purple-500 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium text-purple-600 uppercase tracking-wider">
-                              Status
-                            </p>
-                            <span
-                              className={`inline-flex items-center mt-1 px-2 py-1 text-xs font-semibold rounded-full
-                            ${
-                              selectedStudentForDetails.status === "Active"
-                                ? "bg-green-100 text-green-800"
-                                : ""
-                            }
-                            ${
-                              selectedStudentForDetails.status === "Inactive"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : ""
-                            }
-                            ${
-                              selectedStudentForDetails.status === "Graduated"
-                                ? "bg-blue-100 text-blue-800"
-                                : ""
-                            }
-                            ${
-                              selectedStudentForDetails.status === "Transferred"
-                                ? "bg-purple-100 text-purple-800"
-                                : ""
-                            }
-                            ${
-                              selectedStudentForDetails.status === "Suspended"
-                                ? "bg-red-100 text-red-800"
-                                : ""
-                            }
-                            ${
-                              selectedStudentForDetails.status === "On Leave"
-                                ? "bg-gray-100 text-gray-800"
-                                : ""
-                            }
-                          `}
-                            >
-                              {selectedStudentForDetails.status || "N/A"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Student Information Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Basic Information */}
-                      <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
-                        <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                          <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                            <Users className="w-4 h-4 text-blue-600" />
-                          </div>
-                          Basic Information
-                        </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="bg-white p-3 rounded-lg border border-gray-100">
-                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
-                              Full Name
-                            </p>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {selectedStudentForDetails.name || "N/A"}
-                            </p>
-                          </div>
-                          <div className="bg-white p-3 rounded-lg border border-gray-100">
-                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
-                              Student ID
-                            </p>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {selectedStudentForDetails.studentId || "N/A"}
-                            </p>
-                          </div>
-                          <div className="bg-white p-3 rounded-lg border border-gray-100">
-                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
-                              Roll Number
-                            </p>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {selectedStudentForDetails.rollNumber || "N/A"}
-                            </p>
-                          </div>
-                          <div className="bg-white p-3 rounded-lg border border-gray-100">
-                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
-                              Date of Birth
-                            </p>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {selectedStudentForDetails.dateOfBirth
-                                ? new Date(
-                                    selectedStudentForDetails.dateOfBirth
-                                  ).toLocaleDateString()
-                                : "N/A"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Academic Information */}
-                      <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
-                        <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                          <div className="p-2 bg-green-100 rounded-lg mr-3">
-                            <GraduationCap className="w-4 h-4 text-green-600" />
-                          </div>
-                          Academic Information
-                        </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="bg-white p-3 rounded-lg border border-gray-100">
-                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
-                              Program
-                            </p>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {selectedStudentForDetails.program || "N/A"}
-                            </p>
-                          </div>
-                          <div className="bg-white p-3 rounded-lg border border-gray-100">
-                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
-                              Program Type
-                            </p>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {selectedStudentForDetails.programType || "N/A"}
-                            </p>
-                          </div>
-                          <div className="bg-white p-3 rounded-lg border border-gray-100">
-                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
-                              Department
-                            </p>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {selectedStudentForDetails.department?.name ||
-                                selectedStudentForDetails.department ||
-                                "N/A"}
-                            </p>
-                          </div>
-                          <div className="bg-white p-3 rounded-lg border border-gray-100">
-                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
-                              Year/Semester
-                            </p>
-                            <p className="text-sm font-semibold text-gray-900">
-                              Year{" "}
-                              {selectedStudentForDetails.yearOfStudy || "N/A"} •
-                              Sem {selectedStudentForDetails.semester || "N/A"}
-                            </p>
-                          </div>
-                          <div className="bg-white p-3 rounded-lg border border-gray-100">
-                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
-                              GPA
-                            </p>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {selectedStudentForDetails.gpa
-                                ? selectedStudentForDetails.gpa.toFixed(2)
-                                : "N/A"}
-                            </p>
-                          </div>
-                          <div className="bg-white p-3 rounded-lg border border-gray-100">
-                            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
-                              Academic Standing
-                            </p>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {selectedStudentForDetails.academicStanding ||
-                                "N/A"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Additional sections if studentDetailSections exists */}
-                    {typeof studentDetailSections !== "undefined" && (
-                      <div className="mt-6 space-y-6">
-                        {studentDetailSections.map((section) => (
-                          <div
-                            key={section.title}
-                            className="bg-gray-50 rounded-xl p-6 border border-gray-100"
-                          >
-                            <h4 className="text-lg font-bold text-gray-900 border-b border-gray-200 pb-3 mb-4 flex items-center">
-                              <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                                <Building2 className="w-4 h-4 text-blue-600" />
-                              </div>
-                              {section.title}
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {section.fields.map((field) => {
-                                const keys = field.key.split(".");
-                                let value = selectedStudentForDetails;
-
-                                for (const key of keys) {
-                                  value = value?.[key];
-                                  if (value === undefined) break;
-                                }
-
-                                const displayValue = field.format
-                                  ? field.format(value)
-                                  : value ?? "N/A";
-
-                                return (
-                                  <div
-                                    key={field.key}
-                                    className="bg-white p-3 rounded-lg border border-gray-100"
-                                  >
-                                    <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
-                                      {field.label}
-                                    </p>
-                                    <p className="text-sm font-semibold text-gray-900 break-words">
-                                      {displayValue}
-                                    </p>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Modal Footer */}
-                <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-3 space-y-3 space-y-reverse sm:space-y-0">
-                  <button
-                    type="button"
-                    onClick={() => setDetailsModalOpen(false)}
-                    className="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200"
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDetailsModalOpen(false);
-                      handleEditClick(selectedStudentForDetails);
-                    }}
-                    className="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-medium text-white rounded-lg shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-                  >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit Student
-                  </button>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Student Form Modal */}
+      <StudentFormModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditStudent(null);
+        }}
+        onSave={handleSaveStudent}
+        initialData={editStudent}
+        departments={departments}
+        facultyAdvisors={facultyAdvisors}
+      />
+
+      {/* Enhanced Student Details Modal */}
+      {detailsModalOpen && selectedStudentForDetails && (
+        <StudentDetailsModal
+          isOpen={detailsModalOpen}
+          onClose={() => setDetailsModalOpen(false)}
+          student={selectedStudentForDetails}
+        />
+      )}
     </div>
   );
 }

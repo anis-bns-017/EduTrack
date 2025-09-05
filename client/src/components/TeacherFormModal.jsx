@@ -10,6 +10,21 @@ import {
   FaGlobe,
   FaPlus,
   FaMinus,
+  FaAward,
+  FaCertificate,
+  FaBook,
+  FaClock,
+  FaBuilding,
+  FaMapMarkerAlt,
+  FaPhone,
+  FaEnvelope,
+  FaHeart,
+  FaLinkedin,
+  FaTwitter,
+  FaGoogle,
+  FaGithub,
+  FaGlobeAmericas,
+  FaIdCard,
 } from "react-icons/fa";
 
 export default function TeacherFormModal({
@@ -17,42 +32,71 @@ export default function TeacherFormModal({
   onClose,
   onSuccess,
   teacher,
+  faculties, 
+  departments
 }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
+    employeeId: "",
+    title: "",
     firstName: "",
+    middleName: "",
     lastName: "",
-    email: "",
-    password: "",
-    department: "",
-    faculty: "",
-    designation: "",
-    qualification: "",
-    specialization: [""],
-    joiningDate: "",
     dateOfBirth: "",
     gender: "",
-    address: {
-      street: "",
-      city: "",
-      state: "",
-      zipCode: "",
-      country: "",
-    },
-    officeLocation: "",
-    officeHours: [],
+    bloodGroup: "",
+    nationality: "",
+    email: "",
     phone: "",
     emergencyContact: {
       name: "",
       relationship: "",
       phone: "",
-      email: "",
     },
-    coursesTeaching: [],
+    address: {
+      street: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      country: "",
+    },
+    password: "",
+    department: "",
+    faculty: "",
+    designation: "",
+    employmentType: "Full-time",
+    joiningDate: "",
+    contractEndDate: "",
+    status: "Active",
+    qualifications: [{
+      degree: "",
+      field: "",
+      institution: "",
+      year: new Date().getFullYear(),
+      country: "",
+      grade: "",
+      thesisTitle: "",
+      supervisor: "",
+      isHighest: false
+    }],
+    certifications: [],
+    professionalDevelopment: [],
+    teachingCredentials: [],
+    specialization: [""],
     researchInterests: [""],
+    areasOfExpertise: [""],
     publications: [],
-    experience: "",
-    salary: "",
+    coursesTeaching: [],
+    officeLocation: "",
+    officeHours: [],
+    officeExtension: "",
+    teachingLoad: 12,
+    experience: {
+      teaching: 0,
+      industry: 0,
+      research: 0
+    },
+    previousInstitutions: [],
     isActive: true,
     role: "teacher",
     profilePhoto: "default.jpg",
@@ -62,112 +106,107 @@ export default function TeacherFormModal({
       twitter: "",
       researchGate: "",
       googleScholar: "",
+      website: "",
+      github: "",
+      orcid: ""
     },
+    awards: [],
+    salaryGrade: "",
+    bankAccount: {
+      bankName: "",
+      accountNumber: "",
+      branchCode: "",
+    }
   });
 
-  const [departments, setDepartments] = useState([]);
-  const [faculties, setFaculties] = useState([]);
   const [courses, setCourses] = useState([]);
 
-  // Predefined designations
+  // Predefined options
+  const titles = ["Dr.", "Prof.", "Mr.", "Mrs.", "Ms.", "Mx."];
   const designations = [
     "Professor",
     "Associate Professor",
     "Assistant Professor",
+    "Senior Lecturer",
     "Lecturer",
     "Visiting Faculty",
     "Adjunct Professor",
+    "Research Fellow",
+    "Teaching Assistant",
   ];
+  const employmentTypes = ["Full-time", "Part-time", "Contract", "Visiting", "Adjunct"];
+  const statusOptions = ["Active", "On Leave", "Sabbatical", "Retired", "Resigned", "Terminated"];
+  const genderOptions = ["Male", "Female", "Other", "Prefer not to say"];
+  const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"];
+  const degreeOptions = ["High School", "Associate", "Bachelor", "Master", "Doctorate", "Postdoctoral", "Diploma", "Certificate", "Other"];
+  const credentialTypes = ["State License", "National Board", "Subject Specific", "International", "Other"];
+  const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-  // Predefined qualifications
-  const qualifications = [
-    "PhD",
-    "MSc",
-    "MBA",
-    "MA",
-    "MPhil",
-    "BSc",
-    "BA",
-    "Other",
-  ];
-
-  // Days for office hours
-  const daysOfWeek = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-  ];
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [deptsRes, facultiesRes, coursesRes] = await Promise.all([
-          axios.get("/departments"),
-          axios.get("/faculties"),
-          axios.get("/courses"),
-        ]);
-        setDepartments(deptsRes.data.data || []);
-        setFaculties(facultiesRes.data.data || []);
-        setCourses(coursesRes.data.data || []);
-      } catch (err) {
-        toast.error(
-          "Failed to load data: " + (err.response?.data?.message || err.message)
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (isOpen) {
-      fetchData();
-    }
-  }, [isOpen]);
 
   useEffect(() => {
     if (teacher) {
+      // Transform the teacher data to match our form structure
       setFormData({
+        employeeId: teacher.employeeId || "",
+        title: teacher.title || "",
         firstName: teacher.firstName || "",
+        middleName: teacher.middleName || "",
         lastName: teacher.lastName || "",
-        email: teacher.email || "",
-        password: "",
-        department: teacher.department?._id || teacher.department || "",
-        faculty: teacher.faculty?._id || teacher.faculty || "",
-        designation: teacher.designation || "",
-        qualification: teacher.qualification || "",
-        specialization: teacher.specialization || [""],
-        joiningDate: teacher.joiningDate
-          ? new Date(teacher.joiningDate).toISOString().split("T")[0]
-          : "",
-        dateOfBirth: teacher.dateOfBirth
-          ? new Date(teacher.dateOfBirth).toISOString().split("T")[0]
-          : "",
+        dateOfBirth: teacher.dateOfBirth ? new Date(teacher.dateOfBirth).toISOString().split("T")[0] : "",
         gender: teacher.gender || "",
-        address: teacher.address || {
-          street: "",
-          city: "",
-          state: "",
-          zipCode: "",
-          country: "",
-        },
-        officeLocation: teacher.officeLocation || "",
-        officeHours: teacher.officeHours || [],
+        bloodGroup: teacher.bloodGroup || "",
+        nationality: teacher.nationality || "",
+        email: teacher.email || "",
         phone: teacher.phone || "",
         emergencyContact: teacher.emergencyContact || {
           name: "",
           relationship: "",
           phone: "",
-          email: "",
         },
-        coursesTeaching: teacher.coursesTeaching || [],
+        address: teacher.address || {
+          street: "",
+          city: "",
+          state: "",
+          postalCode: "",
+          country: "",
+        },
+        password: "",
+        department: teacher.department?._id || teacher.department || "",
+        faculty: teacher.faculty?._id || teacher.faculty || "",
+        designation: teacher.designation || "",
+        employmentType: teacher.employmentType || "Full-time",
+        joiningDate: teacher.joiningDate ? new Date(teacher.joiningDate).toISOString().split("T")[0] : "",
+        contractEndDate: teacher.contractEndDate ? new Date(teacher.contractEndDate).toISOString().split("T")[0] : "",
+        status: teacher.status || "Active",
+        qualifications: teacher.qualifications || [{
+          degree: "",
+          field: "",
+          institution: "",
+          year: new Date().getFullYear(),
+          country: "",
+          grade: "",
+          thesisTitle: "",
+          supervisor: "",
+          isHighest: false
+        }],
+        certifications: teacher.certifications || [],
+        professionalDevelopment: teacher.professionalDevelopment || [],
+        teachingCredentials: teacher.teachingCredentials || [],
+        specialization: teacher.specialization || [""],
         researchInterests: teacher.researchInterests || [""],
+        areasOfExpertise: teacher.areasOfExpertise || [""],
         publications: teacher.publications || [],
-        experience: teacher.experience || "",
-        salary: teacher.salary || "",
+        coursesTeaching: teacher.coursesTeaching || [],
+        officeLocation: teacher.officeLocation || "",
+        officeHours: teacher.officeHours || [],
+        officeExtension: teacher.officeExtension || "",
+        teachingLoad: teacher.teachingLoad || 12,
+        experience: teacher.experience || {
+          teaching: 0,
+          industry: 0,
+          research: 0
+        },
+        previousInstitutions: teacher.previousInstitutions || [],
         isActive: teacher.isActive !== undefined ? teacher.isActive : true,
         role: teacher.role || "teacher",
         profilePhoto: teacher.profilePhoto || "default.jpg",
@@ -177,43 +216,81 @@ export default function TeacherFormModal({
           twitter: "",
           researchGate: "",
           googleScholar: "",
+          website: "",
+          github: "",
+          orcid: ""
         },
+        awards: teacher.awards || [],
+        salaryGrade: teacher.salaryGrade || "",
+        bankAccount: teacher.bankAccount || {
+          bankName: "",
+          accountNumber: "",
+          branchCode: "",
+        }
       });
     } else {
+      // Reset to default empty form
       setFormData({
+        employeeId: "",
+        title: "",
         firstName: "",
+        middleName: "",
         lastName: "",
-        email: "",
-        password: "",
-        department: "",
-        faculty: "",
-        designation: "",
-        qualification: "",
-        specialization: [""],
-        joiningDate: "",
         dateOfBirth: "",
         gender: "",
-        address: {
-          street: "",
-          city: "",
-          state: "",
-          zipCode: "",
-          country: "",
-        },
-        officeLocation: "",
-        officeHours: [],
+        bloodGroup: "",
+        nationality: "",
+        email: "",
         phone: "",
         emergencyContact: {
           name: "",
           relationship: "",
           phone: "",
-          email: "",
         },
-        coursesTeaching: [],
+        address: {
+          street: "",
+          city: "",
+          state: "",
+          postalCode: "",
+          country: "",
+        },
+        password: "",
+        department: "",
+        faculty: "",
+        designation: "",
+        employmentType: "Full-time",
+        joiningDate: "",
+        contractEndDate: "",
+        status: "Active",
+        qualifications: [{
+          degree: "",
+          field: "",
+          institution: "",
+          year: new Date().getFullYear(),
+          country: "",
+          grade: "",
+          thesisTitle: "",
+          supervisor: "",
+          isHighest: false
+        }],
+        certifications: [],
+        professionalDevelopment: [],
+        teachingCredentials: [],
+        specialization: [""],
         researchInterests: [""],
+        areasOfExpertise: [""],
         publications: [],
-        experience: "",
-        salary: "",
+        coursesTeaching: [],
+        officeLocation: "",
+        officeHours: [],
+        officeExtension: "",
+        teachingLoad: 12,
+        experience: {
+          teaching: 0,
+          industry: 0,
+          research: 0
+        },
+        previousInstitutions: [],
         isActive: true,
         role: "teacher",
         profilePhoto: "default.jpg",
@@ -223,13 +300,24 @@ export default function TeacherFormModal({
           twitter: "",
           researchGate: "",
           googleScholar: "",
+          website: "",
+          github: "",
+          orcid: ""
         },
+        awards: [],
+        salaryGrade: "",
+        bankAccount: {
+          bankName: "",
+          accountNumber: "",
+          branchCode: "",
+        }
       });
     }
   }, [teacher]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+    
     if (name.startsWith("socialMedia.")) {
       const platform = name.split(".")[1];
       setFormData((prev) => ({
@@ -257,19 +345,72 @@ export default function TeacherFormModal({
           [field]: value,
         },
       }));
-    } else if (name === "specialization") {
+    } else if (name.startsWith("bankAccount.")) {
+      const field = name.split(".")[1];
       setFormData((prev) => ({
         ...prev,
-        specialization: value.split(",").map((item) => item.trim()),
+        bankAccount: {
+          ...prev.bankAccount,
+          [field]: value,
+        },
       }));
-    } else if (name === "researchInterests") {
+    } else if (name.startsWith("experience.")) {
+      const field = name.split(".")[1];
       setFormData((prev) => ({
         ...prev,
-        researchInterests: value.split(",").map((item) => item.trim()),
+        experience: {
+          ...prev.experience,
+          [field]: parseInt(value) || 0,
+        },
       }));
+    } else if (type === "checkbox") {
+      setFormData((prev) => ({ ...prev, [name]: checked }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
+  };
+
+  const handleArrayFieldChange = (fieldName, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [fieldName]: value.split(",").map((item) => item.trim()).filter(item => item !== ""),
+    }));
+  };
+
+  const handleQualificationChange = (index, field, value) => {
+    const updatedQualifications = [...formData.qualifications];
+    updatedQualifications[index] = {
+      ...updatedQualifications[index],
+      [field]: value,
+    };
+    setFormData((prev) => ({ ...prev, qualifications: updatedQualifications }));
+  };
+
+  const addQualification = () => {
+    setFormData((prev) => ({
+      ...prev,
+      qualifications: [
+        ...prev.qualifications,
+        {
+          degree: "",
+          field: "",
+          institution: "",
+          year: new Date().getFullYear(),
+          country: "",
+          grade: "",
+          thesisTitle: "",
+          supervisor: "",
+          isHighest: false
+        }
+      ],
+    }));
+  };
+
+  const removeQualification = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      qualifications: prev.qualifications.filter((_, i) => i !== index),
+    }));
   };
 
   const handleOfficeHoursChange = (index, field, value) => {
@@ -286,7 +427,7 @@ export default function TeacherFormModal({
       ...prev,
       officeHours: [
         ...prev.officeHours,
-        { day: "", startTime: "", endTime: "" },
+        { day: "", startTime: "", endTime: "", byAppointment: false },
       ],
     }));
   };
@@ -303,7 +444,7 @@ export default function TeacherFormModal({
       ...prev,
       publications: [
         ...prev.publications,
-        { title: "", journal: "", year: "", doi: "" },
+        { title: "", journal: "", year: "", doi: "", type: "Journal", authors: [] },
       ],
     }));
   };
@@ -329,12 +470,9 @@ export default function TeacherFormModal({
     try {
       const payload = {
         ...formData,
-        joiningDate: formData.joiningDate
-          ? new Date(formData.joiningDate)
-          : null,
-        dateOfBirth: formData.dateOfBirth
-          ? new Date(formData.dateOfBirth)
-          : null,
+        joiningDate: formData.joiningDate ? new Date(formData.joiningDate) : null,
+        dateOfBirth: formData.dateOfBirth ? new Date(formData.dateOfBirth) : null,
+        contractEndDate: formData.contractEndDate ? new Date(formData.contractEndDate) : null,
       };
 
       // Remove password field if we're editing and it's empty
@@ -395,15 +533,48 @@ export default function TeacherFormModal({
           )}
 
           <div className="p-6 space-y-6">
-            {/* Personal Information Section */}
+            {/* Basic Information Section */}
             <div className="bg-gray-50 rounded-xl p-6">
               <div className="flex items-center space-x-2 mb-6">
-                <FaUser className="text-blue-600 text-lg" />
+                <FaIdCard className="text-blue-600 text-lg" />
                 <h3 className="text-xl font-semibold text-gray-800">
-                  Personal Information
+                  Basic Information
                 </h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Employee ID *
+                  </label>
+                  <input
+                    type="text"
+                    name="employeeId"
+                    value={formData.employeeId}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    required
+                    pattern="[A-Z0-9]{6,10}"
+                    title="6-10 alphanumeric characters (uppercase)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Title
+                  </label>
+                  <select
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  >
+                    <option value="">Select Title</option>
+                    {titles.map((title) => (
+                      <option key={title} value={title}>
+                        {title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     First Name *
@@ -415,6 +586,18 @@ export default function TeacherFormModal({
                     onChange={handleChange}
                     className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
                     required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Middle Name
+                  </label>
+                  <input
+                    type="text"
+                    name="middleName"
+                    value={formData.middleName}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
                   />
                 </div>
                 <div>
@@ -471,7 +654,7 @@ export default function TeacherFormModal({
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Date of Birth
+                    Date of Birth *
                   </label>
                   <input
                     type="date"
@@ -479,34 +662,75 @@ export default function TeacherFormModal({
                     value={formData.dateOfBirth}
                     onChange={handleChange}
                     className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Gender
+                    Gender *
                   </label>
                   <select
                     name="gender"
                     value={formData.gender}
                     onChange={handleChange}
                     className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    required
                   >
                     <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                    <option value="Prefer not to say">Prefer not to say</option>
+                    {genderOptions.map((gender) => (
+                      <option key={gender} value={gender}>
+                        {gender}
+                      </option>
+                    ))}
                   </select>
                 </div>
-                <div className="md:col-span-2 lg:col-span-3">
+                <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Address
+                    Blood Group
                   </label>
+                  <select
+                    name="bloodGroup"
+                    value={formData.bloodGroup}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  >
+                    <option value="">Select Blood Group</option>
+                    {bloodGroups.map((group) => (
+                      <option key={group} value={group}>
+                        {group}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Nationality
+                  </label>
+                  <input
+                    type="text"
+                    name="nationality"
+                    value={formData.nationality}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Information Section */}
+            <div className="bg-blue-50 rounded-xl p-6">
+              <div className="flex items-center space-x-2 mb-6">
+                <FaMapMarkerAlt className="text-blue-600 text-lg" />
+                <h3 className="text-xl font-semibold text-gray-800">
+                  Contact Information
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Address</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        Street Address
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Street</label>
                       <input
                         type="text"
                         name="address.street"
@@ -516,9 +740,7 @@ export default function TeacherFormModal({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        City
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
                       <input
                         type="text"
                         name="address.city"
@@ -528,9 +750,7 @@ export default function TeacherFormModal({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        State
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
                       <input
                         type="text"
                         name="address.state"
@@ -540,21 +760,17 @@ export default function TeacherFormModal({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        Zip Code
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Postal Code</label>
                       <input
                         type="text"
-                        name="address.zipCode"
-                        value={formData.address.zipCode}
+                        name="address.postalCode"
+                        value={formData.address.postalCode}
                         onChange={handleChange}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs text-gray-600 mb-1">
-                        Country
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
                       <input
                         type="text"
                         name="address.country"
@@ -565,15 +781,12 @@ export default function TeacherFormModal({
                     </div>
                   </div>
                 </div>
-                <div className="md:col-span-2 lg:col-span-3">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Emergency Contact
-                  </label>
+
+                <div className="md:col-span-2">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Emergency Contact</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        Contact Name
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
                       <input
                         type="text"
                         name="emergencyContact.name"
@@ -583,38 +796,21 @@ export default function TeacherFormModal({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        Relationship
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Relationship</label>
                       <input
                         type="text"
                         name="emergencyContact.relationship"
                         value={formData.emergencyContact.relationship}
                         onChange={handleChange}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="e.g., Spouse, Parent, Sibling"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        Contact Phone
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                       <input
                         type="tel"
                         name="emergencyContact.phone"
                         value={formData.emergencyContact.phone}
-                        onChange={handleChange}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        Contact Email
-                      </label>
-                      <input
-                        type="email"
-                        name="emergencyContact.email"
-                        value={formData.emergencyContact.email}
                         onChange={handleChange}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -624,12 +820,12 @@ export default function TeacherFormModal({
               </div>
             </div>
 
-            {/* Academic Information Section */}
-            <div className="bg-blue-50 rounded-xl p-6">
+            {/* Professional Information Section */}
+            <div className="bg-green-50 rounded-xl p-6">
               <div className="flex items-center space-x-2 mb-6">
-                <FaGraduationCap className="text-blue-600 text-lg" />
+                <FaBriefcase className="text-green-600 text-lg" />
                 <h3 className="text-xl font-semibold text-gray-800">
-                  Academic Information
+                  Professional Information
                 </h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -683,99 +879,49 @@ export default function TeacherFormModal({
                     required
                   >
                     <option value="">Select Designation</option>
-                    {designations.map((title, index) => (
-                      <option key={index} value={title}>
+                    {designations.map((title) => (
+                      <option key={title} value={title}>
                         {title}
                       </option>
                     ))}
-                </select>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Qualification *
+                    Employment Type *
                   </label>
                   <select
-                    name="qualification"
-                    value={formData.qualification}
+                    name="employmentType"
+                    value={formData.employmentType}
                     onChange={handleChange}
                     className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
                     required
                   >
-                    <option value="">Select Qualification</option>
-                    {qualifications.map((qual, index) => (
-                      <option key={index} value={qual}>
-                        {qual}
+                    {employmentTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Specialization *
-                  </label>
-                  <input
-                    type="text"
-                    name="specialization"
-                    value={formData.specialization.join(", ")}
-                    onChange={handleChange}
-                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                    placeholder="Comma separated list of specializations"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Research Interests
-                  </label>
-                  <input
-                    type="text"
-                    name="researchInterests"
-                    value={formData.researchInterests.join(", ")}
-                    onChange={handleChange}
-                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                    placeholder="Comma separated research interests"
-                  />
-                </div>
-                <div className="md:col-span-2 lg:col-span-3">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Courses Teaching
+                    Status *
                   </label>
                   <select
-                    multiple
-                    value={formData.coursesTeaching}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        coursesTeaching: Array.from(
-                          e.target.selectedOptions,
-                          (option) => option.value
-                        ),
-                      }))
-                    }
-                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 h-32"
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    required
                   >
-                    {courses.map((course) => (
-                      <option key={course._id} value={course._id}>
-                        {course.code} - {course.title}
+                    {statusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Hold Ctrl/Cmd to select multiple courses
-                  </p>
                 </div>
-              </div>
-            </div>
-
-            {/* Professional Details Section */}
-            <div className="bg-yellow-50 rounded-xl p-6">
-              <div className="flex items-center space-x-2 mb-6">
-                <FaBriefcase className="text-yellow-600 text-lg" />
-                <h3 className="text-xl font-semibold text-gray-800">
-                  Professional Details
-                </h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Joining Date *
@@ -791,6 +937,32 @@ export default function TeacherFormModal({
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Contract End Date
+                  </label>
+                  <input
+                    type="date"
+                    name="contractEndDate"
+                    value={formData.contractEndDate}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Teaching Load (hours)
+                  </label>
+                  <input
+                    type="number"
+                    name="teachingLoad"
+                    value={formData.teachingLoad}
+                    onChange={handleChange}
+                    min="0"
+                    max="24"
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Office Location
                   </label>
                   <input
@@ -799,99 +971,40 @@ export default function TeacherFormModal({
                     value={formData.officeLocation}
                     onChange={handleChange}
                     className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                    placeholder="Building and room number"
                   />
-                </div>
-                <div className="md:col-span-2 lg:col-span-3">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Office Hours
-                  </label>
-                  {formData.officeHours.map((hour, index) => (
-                    <div key={index} className="mb-3 p-3 border rounded-lg bg-white">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-1">
-                            Day
-                          </label>
-                          <select
-                            value={hour.day}
-                            onChange={(e) =>
-                              handleOfficeHoursChange(
-                                index,
-                                "day",
-                                e.target.value
-                              )
-                            }
-                            className="w-full border border-gray-300 rounded-md px-3 py-2"
-                          >
-                            <option value="">Select Day</option>
-                            {daysOfWeek.map((day) => (
-                              <option key={day} value={day}>
-                                {day}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-1">
-                            Start Time
-                          </label>
-                          <input
-                            type="time"
-                            value={hour.startTime}
-                            onChange={(e) =>
-                              handleOfficeHoursChange(
-                                index,
-                                "startTime",
-                                e.target.value
-                              )
-                            }
-                            className="w-full border border-gray-300 rounded-md px-3 py-2"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-1">
-                            End Time
-                          </label>
-                          <input
-                            type="time"
-                            value={hour.endTime}
-                            onChange={(e) =>
-                              handleOfficeHoursChange(
-                                index,
-                                "endTime",
-                                e.target.value
-                              )
-                            }
-                            className="w-full border border-gray-300 rounded-md px-3 py-2"
-                          />
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeOfficeHours(index)}
-                        className="text-red-500 text-xs flex items-center mt-2"
-                      >
-                        <FaMinus className="mr-1" /> Remove
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addOfficeHours}
-                    className="text-blue-500 text-sm flex items-center mt-2"
-                  >
-                    <FaPlus className="mr-1" /> Add Office Hours
-                  </button>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Experience (Years)
+                    Office Extension
+                  </label>
+                  <input
+                    type="text"
+                    name="officeExtension"
+                    value={formData.officeExtension}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Experience Section */}
+            <div className="bg-yellow-50 rounded-xl p-6">
+              <div className="flex items-center space-x-2 mb-6">
+                <FaAward className="text-yellow-600 text-lg" />
+                <h3 className="text-xl font-semibold text-gray-800">
+                  Experience
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Teaching Experience (years)
                   </label>
                   <input
                     type="number"
-                    name="experience"
-                    value={formData.experience}
+                    name="experience.teaching"
+                    value={formData.experience.teaching}
                     onChange={handleChange}
                     min="0"
                     className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
@@ -899,12 +1012,25 @@ export default function TeacherFormModal({
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Salary
+                    Industry Experience (years)
                   </label>
                   <input
                     type="number"
-                    name="salary"
-                    value={formData.salary}
+                    name="experience.industry"
+                    value={formData.experience.industry}
+                    onChange={handleChange}
+                    min="0"
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Research Experience (years)
+                  </label>
+                  <input
+                    type="number"
+                    name="experience.research"
+                    value={formData.experience.research}
                     onChange={handleChange}
                     min="0"
                     className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
@@ -913,108 +1039,359 @@ export default function TeacherFormModal({
               </div>
             </div>
 
-            {/* Publications Section */}
+            {/* Qualifications Section */}
             <div className="bg-purple-50 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Publications
-                </h3>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-2">
+                  <FaGraduationCap className="text-purple-600 text-lg" />
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    Qualifications
+                  </h3>
+                </div>
                 <button
                   type="button"
-                  onClick={addPublication}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center"
+                  onClick={addQualification}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center"
                 >
-                  <FaPlus className="mr-2" /> Add Publication
+                  <FaPlus className="mr-2" /> Add Qualification
                 </button>
               </div>
-              {formData.publications.map((publication, index) => (
-                <div
-                  key={index}
-                  className="bg-white p-4 rounded-lg border-2 border-gray-200 mb-4"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              
+              {formData.qualifications.map((qual, index) => (
+                <div key={index} className="bg-white p-6 rounded-lg border-2 border-purple-200 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        Title
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Degree *</label>
+                      <select
+                        value={qual.degree}
+                        onChange={(e) => handleQualificationChange(index, "degree", e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                        required
+                      >
+                        <option value="">Select Degree</option>
+                        {degreeOptions.map((degree) => (
+                          <option key={degree} value={degree}>{degree}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Field of Study *</label>
                       <input
                         type="text"
-                        value={publication.title}
-                        onChange={(e) =>
-                          handlePublicationChange(index, "title", e.target.value)
-                        }
+                        value={qual.field}
+                        onChange={(e) => handleQualificationChange(index, "field", e.target.value)}
                         className="w-full border border-gray-300 rounded-md px-3 py-2"
+                        required
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        Journal
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Institution *</label>
                       <input
                         type="text"
-                        value={publication.journal}
-                        onChange={(e) =>
-                          handlePublicationChange(
-                            index,
-                            "journal",
-                            e.target.value
-                          )
-                        }
+                        value={qual.institution}
+                        onChange={(e) => handleQualificationChange(index, "institution", e.target.value)}
                         className="w-full border border-gray-300 rounded-md px-3 py-2"
+                        required
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        Year
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Year *</label>
                       <input
                         type="number"
-                        value={publication.year}
-                        onChange={(e) =>
-                          handlePublicationChange(index, "year", e.target.value)
-                        }
-                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                        value={qual.year}
+                        onChange={(e) => handleQualificationChange(index, "year", e.target.value)}
                         min="1900"
                         max={new Date().getFullYear()}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                        required
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">
-                        DOI
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
                       <input
                         type="text"
-                        value={publication.doi}
-                        onChange={(e) =>
-                          handlePublicationChange(index, "doi", e.target.value)
-                        }
+                        value={qual.country}
+                        onChange={(e) => handleQualificationChange(index, "country", e.target.value)}
                         className="w-full border border-gray-300 rounded-md px-3 py-2"
-                        placeholder="10.xxxx/xxxx"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Grade</label>
+                      <input
+                        type="text"
+                        value={qual.grade}
+                        onChange={(e) => handleQualificationChange(index, "grade", e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Thesis Title</label>
+                      <input
+                        type="text"
+                        value={qual.thesisTitle}
+                        onChange={(e) => handleQualificationChange(index, "thesisTitle", e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Supervisor</label>
+                      <input
+                        type="text"
+                        value={qual.supervisor}
+                        onChange={(e) => handleQualificationChange(index, "supervisor", e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={qual.isHighest}
+                        onChange={(e) => handleQualificationChange(index, "isHighest", e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label className="ml-2 block text-sm text-gray-700">Highest Qualification</label>
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => removePublication(index)}
+                    onClick={() => removeQualification(index)}
+                    className="text-red-500 text-sm flex items-center mt-4"
+                  >
+                    <FaTimes className="mr-1" /> Remove Qualification
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Specialization & Expertise Section */}
+            <div className="bg-orange-50 rounded-xl p-6">
+              <div className="flex items-center space-x-2 mb-6">
+                <FaBook className="text-orange-600 text-lg" />
+                <h3 className="text-xl font-semibold text-gray-800">
+                  Specialization & Expertise
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Specialization *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.specialization.join(", ")}
+                    onChange={(e) => handleArrayFieldChange("specialization", e.target.value)}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    placeholder="Comma separated list of specializations"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Research Interests
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.researchInterests.join(", ")}
+                    onChange={(e) => handleArrayFieldChange("researchInterests", e.target.value)}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    placeholder="Comma separated research interests"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Areas of Expertise
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.areasOfExpertise.join(", ")}
+                    onChange={(e) => handleArrayFieldChange("areasOfExpertise", e.target.value)}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    placeholder="Comma separated areas of expertise"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Office Hours Section */}
+            <div className="bg-teal-50 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-2">
+                  <FaClock className="text-teal-600 text-lg" />
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    Office Hours
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={addOfficeHours}
+                  className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center"
+                >
+                  <FaPlus className="mr-2" /> Add Office Hours
+                </button>
+              </div>
+              
+              {formData.officeHours.map((hour, index) => (
+                <div key={index} className="bg-white p-4 rounded-lg border-2 border-teal-200 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Day</label>
+                      <select
+                        value={hour.day}
+                        onChange={(e) => handleOfficeHoursChange(index, "day", e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      >
+                        <option value="">Select Day</option>
+                        {daysOfWeek.map((day) => (
+                          <option key={day} value={day}>{day}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Start Time</label>
+                      <input
+                        type="time"
+                        value={hour.startTime}
+                        onChange={(e) => handleOfficeHoursChange(index, "startTime", e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">End Time</label>
+                      <input
+                        type="time"
+                        value={hour.endTime}
+                        onChange={(e) => handleOfficeHoursChange(index, "endTime", e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={hour.byAppointment || false}
+                        onChange={(e) => handleOfficeHoursChange(index, "byAppointment", e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label className="ml-2 block text-xs text-gray-700">By Appointment</label>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeOfficeHours(index)}
                     className="text-red-500 text-xs flex items-center mt-2"
                   >
                     <FaTimes className="mr-1" /> Remove
                   </button>
                 </div>
               ))}
-              {formData.publications.length === 0 && (
-                <p className="text-gray-500 text-center py-4">
-                  No publications added yet.
-                </p>
-              )}
             </div>
 
-            {/* Profile & Social Media Section */}
-            <div className="bg-green-50 rounded-xl p-6">
+            {/* Social Media Section */}
+            <div className="bg-indigo-50 rounded-xl p-6">
               <div className="flex items-center space-x-2 mb-6">
-                <FaGlobe className="text-green-600 text-lg" />
+                <FaGlobe className="text-indigo-600 text-lg" />
                 <h3 className="text-xl font-semibold text-gray-800">
-                  Profile & Social Media
+                  Social Media & Online Presence
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                    <FaLinkedin className="text-blue-600 mr-2" /> LinkedIn
+                  </label>
+                  <input
+                    type="url"
+                    name="socialMedia.linkedIn"
+                    value={formData.socialMedia.linkedIn}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    placeholder="https://linkedin.com/in/username"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                    <FaTwitter className="text-blue-400 mr-2" /> Twitter
+                  </label>
+                  <input
+                    type="url"
+                    name="socialMedia.twitter"
+                    value={formData.socialMedia.twitter}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    placeholder="https://twitter.com/username"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                    <FaBook className="text-green-600 mr-2" /> ResearchGate
+                  </label>
+                  <input
+                    type="url"
+                    name="socialMedia.researchGate"
+                    value={formData.socialMedia.researchGate}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    placeholder="https://researchgate.net/profile/username"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                    <FaGoogle className="text-red-500 mr-2" /> Google Scholar
+                  </label>
+                  <input
+                    type="url"
+                    name="socialMedia.googleScholar"
+                    value={formData.socialMedia.googleScholar}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    placeholder="https://scholar.google.com/citations?user=ID"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                    <FaGithub className="text-gray-800 mr-2" /> GitHub
+                  </label>
+                  <input
+                    type="url"
+                    name="socialMedia.github"
+                    value={formData.socialMedia.github}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    placeholder="https://github.com/username"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                    <FaGlobeAmericas className="text-purple-600 mr-2" /> Website
+                  </label>
+                  <input
+                    type="url"
+                    name="socialMedia.website"
+                    value={formData.socialMedia.website}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    placeholder="https://yourwebsite.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">ORCID ID</label>
+                  <input
+                    type="text"
+                    name="socialMedia.orcid"
+                    value={formData.socialMedia.orcid}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    placeholder="0000-0000-0000-0000"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Information Section */}
+            <div className="bg-pink-50 rounded-xl p-6">
+              <div className="flex items-center space-x-2 mb-6">
+                <FaCertificate className="text-pink-600 text-lg" />
+                <h3 className="text-xl font-semibold text-gray-800">
+                  Additional Information
                 </h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1030,6 +1407,18 @@ export default function TeacherFormModal({
                     className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Salary Grade
+                  </label>
+                  <input
+                    type="text"
+                    name="salaryGrade"
+                    value={formData.salaryGrade}
+                    onChange={handleChange}
+                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  />
+                </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Bio
@@ -1041,62 +1430,11 @@ export default function TeacherFormModal({
                     rows="3"
                     className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
                     maxLength="500"
+                    placeholder="Brief biography (max 500 characters)"
                   ></textarea>
                   <p className="text-xs text-gray-500 mt-1">
                     {formData.bio.length}/500 characters
                   </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    LinkedIn
-                  </label>
-                  <input
-                    type="url"
-                    name="socialMedia.linkedIn"
-                    value={formData.socialMedia.linkedIn}
-                    onChange={handleChange}
-                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                    placeholder="https://linkedin.com/in/username"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Twitter
-                  </label>
-                  <input
-                    type="url"
-                    name="socialMedia.twitter"
-                    value={formData.socialMedia.twitter}
-                    onChange={handleChange}
-                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                    placeholder="https://twitter.com/username"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    ResearchGate
-                  </label>
-                  <input
-                    type="url"
-                    name="socialMedia.researchGate"
-                    value={formData.socialMedia.researchGate}
-                    onChange={handleChange}
-                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                    placeholder="https://researchgate.net/profile/username"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Google Scholar
-                  </label>
-                  <input
-                    type="url"
-                    name="socialMedia.googleScholar"
-                    value={formData.socialMedia.googleScholar}
-                    onChange={handleChange}
-                    className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                    placeholder="https://scholar.google.com/citations?user=ID"
-                  />
                 </div>
               </div>
             </div>

@@ -13,6 +13,6 @@ router.get("/", getAllTeachers); // usually public, but add protect if you want 
 
 router.post("/", protect, createTeacher);
 router.put("/:id", protect, updateTeacher);
-router.delete("/:id", protect, deleteTeacher);
+router.delete("/:id", deleteTeacher);
 
 export default router;

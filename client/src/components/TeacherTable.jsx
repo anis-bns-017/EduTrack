@@ -3,8 +3,6 @@ import React, { useState } from "react";
 import {
   FiEdit2,
   FiTrash2,
-  FiChevronDown,
-  FiChevronUp,
   FiSearch,
   FiFilter,
   FiEye,
@@ -16,13 +14,14 @@ import {
   FiPhone,
   FiMail,
   FiUser,
+  FiChevronDown,
+  FiChevronUp,
 } from "react-icons/fi";
 import {
   FaChalkboardTeacher,
   FaRegCalendarAlt,
   FaRegEnvelope,
   FaPhone,
-  FaTransgender,
   FaMapMarkerAlt,
   FaGraduationCap,
   FaDoorOpen,
@@ -31,7 +30,7 @@ import {
   FaUserTie,
 } from "react-icons/fa";
 
-export default function TeacherTable({
+export default function TeacherCards({
   teachers,
   onEdit,
   onDelete,
@@ -45,7 +44,8 @@ export default function TeacherTable({
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [expandedRow, setExpandedRow] = useState(null);
+  const [expandedCard, setExpandedCard] = useState(null);
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
 
   // Helper function to format experience
   const formatExperience = (experience) => {
@@ -78,6 +78,7 @@ export default function TeacherTable({
       direction = "descending";
     }
     setSortConfig({ key, direction });
+    setSortDropdownOpen(false);
   };
 
   // Filter and sort teachers
@@ -142,50 +143,39 @@ export default function TeacherTable({
     }
   };
 
-  const getHeaderIcon = (header) => {
-    switch (header) {
-      case "ID":
-        return <FaIdCard className="mr-1" />;
-      case "Name":
-        return <FaChalkboardTeacher className="mr-1" />;
-      case "Email":
-        return <FaRegEnvelope className="mr-1" />;
-      case "Phone":
-        return <FaPhone className="mr-1" />;
-      case "Department":
-        return <FiBook className="mr-1" />;
-      case "Designation":
-        return <FaUserTie className="mr-1" />;
-      case "Experience":
-        return <FaBusinessTime className="mr-1" />;
-      case "Join Date":
-        return <FaRegCalendarAlt className="mr-1" />;
-      case "Status":
-        return <FiUser className="mr-1" />;
-      default:
-        return null;
-    }
-  };
-
-  const headers = [
-    "ID",
-    "Name",
-    "Email",
-    "Phone",
-    "Department",
-    "Designation",
-    "Experience",
-    "Join Date",
-    "Status",
-    "Actions",
+  const sortOptions = [
+    { key: "firstName", label: "Name", icon: <FaChalkboardTeacher className="mr-2" /> },
+    { key: "employeeId", label: "ID", icon: <FaIdCard className="mr-2" /> },
+    { key: "department", label: "Department", icon: <FiBook className="mr-2" /> },
+    { key: "designation", label: "Designation", icon: <FaUserTie className="mr-2" /> },
+    { key: "experience", label: "Experience", icon: <FaBusinessTime className="mr-2" /> },
+    { key: "joiningDate", label: "Join Date", icon: <FaRegCalendarAlt className="mr-2" /> },
+    { key: "status", label: "Status", icon: <FiUser className="mr-2" /> },
   ];
 
   return (
     <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200/60 backdrop-blur-sm">
       <div className="p-6 bg-gradient-to-r from-slate-50 via-blue-50/30 to-slate-50 border-b border-slate-200/80">
         <div className="flex flex-wrap items-center justify-between gap-6">
-           
+          {/* Search Bar */}
+          <div className="flex-1 min-w-[300px]">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiSearch className="h-5 w-5 text-slate-400" />
+              </div>
+              <input
+                type="text"
+                className="block w-full pl-10 pr-3 py-3.5 border border-slate-300/60 rounded-xl bg-white/80 backdrop-blur-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200"
+                placeholder="Search teachers by name, ID, department..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          {/* Filters and Sort */}
           <div className="flex items-center gap-4">
+            {/* Status Filter */}
             <div className="flex items-center bg-white/80 backdrop-blur-sm rounded-xl border border-slate-300/60 px-4 py-3 shadow-sm">
               <FiFilter className="text-slate-500 mr-3 w-4 h-4" />
               <select
@@ -202,548 +192,301 @@ export default function TeacherTable({
                 <option value="terminated">Terminated</option>
               </select>
             </div>
+
+            {/* Sort Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                className="flex items-center bg-white/80 backdrop-blur-sm rounded-xl border border-slate-300/60 px-4 py-3 shadow-sm text-slate-700 font-medium hover:bg-slate-50 transition-all duration-200"
+              >
+                <span className="mr-2">Sort by</span>
+                {sortDropdownOpen ? <FiChevronUp /> : <FiChevronDown />}
+              </button>
+              
+              {sortDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200/60 z-10 overflow-hidden backdrop-blur-sm">
+                  {sortOptions.map((option) => (
+                    <button
+                      key={option.key}
+                      onClick={() => requestSort(option.key)}
+                      className="flex items-center w-full px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-all duration-200"
+                    >
+                      {option.icon}
+                      {option.label}
+                      {sortConfig.key === option.key && (
+                        <span className="ml-auto text-blue-600">
+                          {sortConfig.direction === "ascending" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200/60">
-          <thead className="bg-gradient-to-r from-slate-100 via-blue-50/40 to-slate-100">
-            <tr>
-              {headers.map((header) => (
-                <th
-                  key={header}
-                  className={`px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider ${
-                    ["Experience", "Status", "Actions"].includes(header)
-                      ? "text-center"
-                      : ""
-                  } cursor-pointer hover:bg-slate-200/50 transition-all duration-200 border-b border-slate-200/40`}
-                  onClick={() =>
-                    header !== "Actions" &&
-                    requestSort(
-                      header
-                        .toLowerCase()
-                        .replace(/[^a-z]/g, "")
-                        .replace(/\s+/g, "")
-                    )
-                  }
-                >
-                  <div
-                    className={`flex items-center ${
-                      ["Experience", "Status", "Actions"].includes(header)
-                        ? "justify-center"
-                        : ""
-                    } group`}
-                  >
-                    <span className="text-slate-500 group-hover:text-blue-600 transition-colors duration-200">
-                      {getHeaderIcon(header)}
-                    </span>
-                    <span className="group-hover:text-slate-800 transition-colors duration-200">
-                      {header}
-                    </span>
-                    {sortConfig.key ===
-                      header
-                        .toLowerCase()
-                        .replace(/[^a-z]/g, "")
-                        .replace(/\s+/g, "") && (
-                      <span className="ml-2 text-blue-600">
-                        {sortConfig.direction === "ascending" ? (
-                          <FiChevronUp className="w-4 h-4" />
-                        ) : (
-                          <FiChevronDown className="w-4 h-4" />
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-slate-100">
-            {filteredTeachers.length === 0 ? (
-              <tr>
-                <td colSpan={headers.length} className="px-6 py-16 text-center">
-                  <div className="flex flex-col items-center justify-center text-slate-500">
-                    <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-slate-100 rounded-full flex items-center justify-center mb-4 shadow-sm">
-                      <span className="text-3xl">👨‍🏫</span>
+
+      {/* Teacher Cards */}
+      <div className="p-6">
+        {filteredTeachers.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="flex flex-col items-center justify-center text-slate-500">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-slate-100 rounded-full flex items-center justify-center mb-4 shadow-sm">
+                <span className="text-3xl">👨‍🏫</span>
+              </div>
+              <h3 className="text-lg font-semibold text-slate-700 mb-2">
+                No teachers found
+              </h3>
+              <p className="text-slate-500 max-w-sm">
+                Try adjusting your search terms or filter criteria to find
+                the teachers you're looking for.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredTeachers.map((teacher, index) => (
+              <div
+                key={teacher._id || index}
+                className="bg-white rounded-2xl shadow-md border border-slate-200/60 overflow-hidden hover:shadow-lg transition-all duration-300 group cursor-pointer"
+              >
+                {/* Card Header */}
+                <div className="p-6 bg-gradient-to-r from-slate-50 via-blue-50/30 to-slate-50 border-b border-slate-200/60">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-sm font-medium text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg">
+                      {teacher.employeeId || "-"}
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-700 mb-2">
-                      No teachers found
-                    </h3>
-                    <p className="text-slate-500 max-w-sm">
-                      Try adjusting your search terms or filter criteria to find
-                      the teachers you're looking for.
-                    </p>
+                    <span
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${getStatusBadgeClass(
+                        teacher.status
+                      )}`}
+                    >
+                      {teacher.status
+                        ? teacher.status.charAt(0).toUpperCase() +
+                          teacher.status.slice(1)
+                        : "-"}
+                    </span>
                   </div>
-                </td>
-              </tr>
-            ) : (
-              filteredTeachers.map((teacher, index) => (
-                <React.Fragment key={teacher._id || index}>
-                  <tr
-                    className={`hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-slate-50/50 transition-all duration-200 cursor-pointer group ${
-                      expandedRow === teacher._id
-                        ? "bg-gradient-to-r from-blue-50/50 to-slate-50/30 shadow-sm"
-                        : index % 2 === 0
-                        ? "bg-white"
-                        : "bg-slate-50/30"
-                    }`}
-                    onClick={() =>
-                      setExpandedRow(
-                        expandedRow === teacher._id ? null : teacher._id
-                      )
-                    }
-                  >
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <div className="text-sm font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-md inline-block">
-                        {teacher.employeeId || "-"}
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-12 w-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-md ring-2 ring-blue-100">
-                          {(teacher.firstName?.charAt(0) || "") +
-                            (teacher.lastName?.charAt(0) || "T")}
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-semibold text-slate-800 group-hover:text-blue-700 transition-colors duration-200">
-                            {`${teacher.title ? teacher.title + " " : ""}${
-                              teacher.firstName || ""
-                            } ${teacher.lastName || ""}`.trim() || "-"}
-                          </div>
-                          <div className="text-xs text-slate-500 font-medium capitalize">
-                            {teacher.gender || "Not specified"}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-sm text-slate-700">
+
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-16 w-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-lg shadow-md ring-2 ring-blue-100">
+                      {(teacher.firstName?.charAt(0) || "") +
+                        (teacher.lastName?.charAt(0) || "T")}
+                    </div>
+                    <div className="ml-4">
+                      <h3 className="text-lg font-semibold text-slate-800 group-hover:text-blue-700 transition-colors duration-200">
+                        {`${teacher.title ? teacher.title + " " : ""}${
+                          teacher.firstName || ""
+                        } ${teacher.lastName || ""}`.trim() || "-"}
+                      </h3>
+                      <p className="text-sm text-slate-600 font-medium">
+                        {teacher.designation || "-"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Body */}
+                <div className="p-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center text-sm text-slate-600">
+                      <FiBook className="w-4 h-4 text-slate-400 mr-3" />
+                      <span className="font-medium">
+                        {getDepartmentName(teacher.department)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center text-sm text-slate-600">
+                      <FaBusinessTime className="w-4 h-4 text-slate-400 mr-3" />
+                      <span className="font-medium">
+                        {formatExperience(teacher.experience)} years experience
+                      </span>
+                    </div>
+
+                    <div className="flex items-center text-sm text-slate-600">
+                      <FaRegCalendarAlt className="w-4 h-4 text-slate-400 mr-3" />
+                      <span className="font-medium">
+                        Joined:{" "}
+                        {teacher.joiningDate
+                          ? new Date(teacher.joiningDate).toLocaleDateString(
+                              "en-US",
+                              {
+                                year: "numeric",
+                                month: "short",
+                              }
+                            )
+                          : "-"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center text-sm text-slate-600">
+                      <FiMail className="w-4 h-4 text-slate-400 mr-3" />
                       <a
                         href={`mailto:${teacher.email}`}
-                        className="text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors duration-200"
+                        className="text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors duration-200 truncate"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {teacher.email || "-"}
                       </a>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-sm text-slate-700 font-medium">
-                      {teacher.phone ? (
+                    </div>
+
+                    {teacher.phone && (
+                      <div className="flex items-center text-sm text-slate-600">
+                        <FiPhone className="w-4 h-4 text-slate-400 mr-3" />
                         <a
                           href={`tel:${teacher.phone}`}
-                          className="hover:text-blue-600 transition-colors duration-200"
+                          className="text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors duration-200"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {teacher.phone}
                         </a>
-                      ) : (
-                        <span className="text-slate-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                        {getDepartmentName(teacher.department)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                        {teacher.designation || "-"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5 text-center font-mono tabular-nums whitespace-nowrap text-sm font-semibold text-slate-800">
-                      <span
-                        className={teacher.experience ? "" : "text-slate-400"}
-                      >
-                        {formatExperience(teacher.experience)} yrs
-                      </span>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-sm text-slate-700 font-medium">
-                      {teacher.joiningDate ? (
-                        new Date(teacher.joiningDate).toLocaleDateString(
-                          "en-US",
-                          {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          }
-                        )
-                      ) : (
-                        <span className="text-slate-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-5 text-center whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide transition-all duration-300 hover:scale-105 ${getStatusBadgeClass(
-                          teacher.status
-                        )}`}
-                      >
-                        {teacher.status
-                          ? teacher.status.charAt(0).toUpperCase() +
-                            teacher.status.slice(1)
-                          : "-"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5 text-center whitespace-nowrap">
-                      <div className="flex justify-center space-x-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onViewDetails(teacher);
-                          }}
-                          className="p-2.5 text-blue-600 hover:text-white hover:bg-blue-600 rounded-xl transition-all duration-200 hover:scale-110 hover:shadow-md border border-blue-200 hover:border-blue-600 bg-blue-50"
-                          title="View Details"
-                        >
-                          <FiEye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEdit(teacher);
-                          }}
-                          className="p-2.5 text-emerald-600 hover:text-white hover:bg-emerald-600 rounded-xl transition-all duration-200 hover:scale-110 hover:shadow-md border border-emerald-200 hover:border-emerald-600 bg-emerald-50"
-                          title="Edit Teacher"
-                        >
-                          <FiEdit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDelete(teacher._id);
-                          }}
-                          className="p-2.5 text-red-600 hover:text-white hover:bg-red-600 rounded-xl transition-all duration-200 hover:scale-110 hover:shadow-md border border-red-200 hover:border-red-600 bg-red-50"
-                          title="Delete Teacher"
-                        >
-                          <FiTrash2 className="w-4 h-4" />
-                        </button>
                       </div>
-                    </td>
-                  </tr>
-                  {expandedRow === teacher._id && (
-                    <tr className="bg-gradient-to-r from-blue-50/40 via-slate-50/60 to-blue-50/40">
-                      <td colSpan={headers.length} className="px-6 py-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {/* Personal Information */}
-                          <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200/60 hover:shadow-lg transition-all duration-200 backdrop-blur-sm">
-                            <div className="flex items-center mb-4">
-                              <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg">
-                                <FiUser className="w-4 h-4 text-white" />
-                              </div>
-                              <h4 className="font-semibold text-slate-800 ml-3">
-                                Personal Information
-                              </h4>
-                            </div>
-                            <div className="space-y-3 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Date of Birth:
-                                </span>
-                                <span className="text-slate-700 font-medium">
-                                  {teacher.dateOfBirth ? new Date(teacher.dateOfBirth).toLocaleDateString() : "-"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Gender:
-                                </span>
-                                <span className="text-slate-700 font-medium capitalize">
-                                  {teacher.gender || "-"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Blood Group:
-                                </span>
-                                <span className="text-slate-700 font-medium">
-                                  {teacher.bloodGroup || "-"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Nationality:
-                                </span>
-                                <span className="text-slate-700 font-medium">
-                                  {teacher.nationality || "-"}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
+                    )}
+                  </div>
 
-                          {/* Contact Information */}
-                          <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200/60 hover:shadow-lg transition-all duration-200 backdrop-blur-sm">
-                            <div className="flex items-center mb-4">
-                              <div className="p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg">
-                                <FiPhone className="w-4 h-4 text-white" />
-                              </div>
-                              <h4 className="font-semibold text-slate-800 ml-3">
-                                Contact Information
-                              </h4>
-                            </div>
-                            <div className="space-y-3 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Email:
-                                </span>
-                                <span className="text-slate-700 font-medium">
-                                  {teacher.email || "-"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Phone:
-                                </span>
-                                <span className="text-slate-700 font-medium">
-                                  {teacher.phone || "-"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Office:
-                                </span>
-                                <span className="text-slate-700 font-medium">
-                                  {teacher.officeLocation || "-"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Address:
-                                </span>
-                                <span className="text-slate-700 font-medium text-right max-w-32 truncate">
-                                  {formatAddress(teacher.address)}
-                                </span>
-                              </div>
-                              {teacher.emergencyContact && (
-                                <div className="pt-2 border-t border-slate-100">
-                                  <p className="text-slate-500 font-medium mb-1">
-                                    Emergency Contact:
-                                  </p>
-                                  <p className="text-slate-700">
-                                    {teacher.emergencyContact.name} (
-                                    {teacher.emergencyContact.relationship}) -{" "}
-                                    {teacher.emergencyContact.phone}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                  {/* Action Buttons */}
+                  <div className="flex justify-center space-x-3 mt-6 pt-4 border-t border-slate-100">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetails(teacher);
+                      }}
+                      className="p-2.5 text-blue-600 hover:text-white hover:bg-blue-600 rounded-xl transition-all duration-200 hover:scale-110 hover:shadow-md border border-blue-200 hover:border-blue-600 bg-blue-50"
+                      title="View Details"
+                    >
+                      <FiEye className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(teacher);
+                      }}
+                      className="p-2.5 text-emerald-600 hover:text-white hover:bg-emerald-600 rounded-xl transition-all duration-200 hover:scale-110 hover:shadow-md border border-emerald-200 hover:border-emerald-600 bg-emerald-50"
+                      title="Edit Teacher"
+                    >
+                      <FiEdit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(teacher._id);
+                      }}
+                      className="p-2.5 text-red-600 hover:text-white hover:bg-red-600 rounded-xl transition-all duration-200 hover:scale-110 hover:shadow-md border border-red-200 hover:border-red-600 bg-red-50"
+                      title="Delete Teacher"
+                    >
+                      <FiTrash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
 
-                          {/* Professional Details */}
-                          <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200/60 hover:shadow-lg transition-all duration-200 backdrop-blur-sm">
-                            <div className="flex items-center mb-4">
-                              <div className="p-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg">
-                                <FaUserTie className="w-4 h-4 text-white" />
-                              </div>
-                              <h4 className="font-semibold text-slate-800 ml-3">
-                                Professional Details
-                              </h4>
-                            </div>
-                            <div className="space-y-3 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Department:
-                                </span>
-                                <span className="text-slate-700 font-medium">
-                                  {getDepartmentName(teacher.department)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Designation:
-                                </span>
-                                <span className="text-slate-700 font-medium">
-                                  {teacher.designation || "-"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Employment Type:
-                                </span>
-                                <span className="text-slate-700 font-medium">
-                                  {teacher.employmentType || "-"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Teaching Load:
-                                </span>
-                                <span className="text-slate-700 font-medium">
-                                  {teacher.teachingLoad || "0"} hours
-                                </span>
-                              </div>
-                              {teacher.contractEndDate && (
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500 font-medium">
-                                    Contract End:
-                                  </span>
-                                  <span className="text-slate-700 font-medium">
-                                    {new Date(teacher.contractEndDate).toLocaleDateString()}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                {/* Expand Button */}
+                <div className="border-t border-slate-200/60">
+                  <button
+                    onClick={() => setExpandedCard(expandedCard === teacher._id ? null : teacher._id)}
+                    className="w-full py-3 text-sm font-medium text-slate-600 hover:text-blue-600 flex items-center justify-center transition-colors duration-200"
+                  >
+                    {expandedCard === teacher._id ? (
+                      <>
+                        <FiChevronUp className="mr-2" />
+                        Show Less
+                      </>
+                    ) : (
+                      <>
+                        <FiChevronDown className="mr-2" />
+                        Show More
+                      </>
+                    )}
+                  </button>
+                </div>
 
-                          {/* Academic Information */}
-                          <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200/60 hover:shadow-lg transition-all duration-200 backdrop-blur-sm">
-                            <div className="flex items-center mb-4">
-                              <div className="p-2 bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg">
-                                <FaGraduationCap className="w-4 h-4 text-white" />
-                              </div>
-                              <h4 className="font-semibold text-slate-800 ml-3">
-                                Academic Information
-                              </h4>
-                            </div>
-                            <div className="space-y-3 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-slate-500 font-medium">
-                                  Qualification:
-                                </span>
-                                <span className="text-slate-700 font-medium">
-                                  {teacher.qualification || "-"}
-                                </span>
-                              </div>
-                              {teacher.specialization && teacher.specialization.length > 0 && (
-                                <div className="flex justify-between">
-                                  <span className="text-slate-500 font-medium">
-                                    Specialization:
-                                  </span>
-                                  <span className="text-slate-700 font-medium text-right">
-                                    {teacher.specialization.join(", ")}
-                                  </span>
-                                </div>
-                              )}
-                              {teacher.researchInterests && teacher.researchInterests.length > 0 && (
-                                <div className="pt-2 border-t border-slate-100">
-                                  <p className="text-slate-500 font-medium mb-1">
-                                    Research Interests:
-                                  </p>
-                                  <p className="text-slate-700">
-                                    {teacher.researchInterests.join(", ")}
-                                  </p>
-                                </div>
-                              )}
-                              {teacher.areasOfExpertise && teacher.areasOfExpertise.length > 0 && (
-                                <div className="pt-2 border-t border-slate-100">
-                                  <p className="text-slate-500 font-medium mb-1">
-                                    Areas of Expertise:
-                                  </p>
-                                  <p className="text-slate-700">
-                                    {teacher.areasOfExpertise.join(", ")}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
+                {/* Expanded Details */}
+                {expandedCard === teacher._id && (
+                  <div className="p-6 bg-slate-50 border-t border-slate-200/60">
+                    <div className="grid grid-cols-1 gap-4">
+                      {/* Personal Information */}
+                      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200/60">
+                        <h4 className="font-semibold text-slate-800 mb-3 flex items-center">
+                          <FiUser className="w-4 h-4 text-blue-600 mr-2" />
+                          Personal Information
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">Gender:</span>
+                            <span className="text-slate-700 font-medium capitalize">
+                              {teacher.gender || "-"}
+                            </span>
                           </div>
-
-                          {/* Experience Details */}
-                          <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200/60 hover:shadow-lg transition-all duration-200 backdrop-blur-sm">
-                            <div className="flex items-center mb-4">
-                              <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg">
-                                <FaBusinessTime className="w-4 h-4 text-white" />
-                              </div>
-                              <h4 className="font-semibold text-slate-800 ml-3">
-                                Experience Details
-                              </h4>
+                          {teacher.dateOfBirth && (
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">Date of Birth:</span>
+                              <span className="text-slate-700 font-medium">
+                                {new Date(teacher.dateOfBirth).toLocaleDateString()}
+                              </span>
                             </div>
-                            <div className="space-y-3 text-sm">
-                              {teacher.experience && typeof teacher.experience === "object" && (
-                                <>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-500 font-medium">
-                                      Teaching Exp:
-                                    </span>
-                                    <span className="text-slate-700 font-medium">
-                                      {teacher.experience.teaching || 0} years
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-500 font-medium">
-                                      Industry Exp:
-                                    </span>
-                                    <span className="text-slate-700 font-medium">
-                                      {teacher.experience.industry || 0} years
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-500 font-medium">
-                                      Research Exp:
-                                    </span>
-                                    <span className="text-slate-700 font-medium">
-                                      {teacher.experience.research || 0} years
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-                              {teacher.previousInstitutions && teacher.previousInstitutions.length > 0 && (
-                                <div className="pt-2 border-t border-slate-100">
-                                  <p className="text-slate-500 font-medium mb-1">
-                                    Previous Institutions:
-                                  </p>
-                                  {teacher.previousInstitutions.map((inst, idx) => (
-                                    <p key={idx} className="text-slate-700 text-sm">
-                                      {inst.name} ({inst.position}) - {inst.duration}
-                                    </p>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Additional Information */}
-                          <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200/60 hover:shadow-lg transition-all duration-200 backdrop-blur-sm">
-                            <div className="flex items-center mb-4">
-                              <div className="p-2 bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg">
-                                <FiAward className="w-4 h-4 text-white" />
-                              </div>
-                              <h4 className="font-semibold text-slate-800 ml-3">
-                                Additional Information
-                              </h4>
-                            </div>
-                            <div className="space-y-3 text-sm">
-                              {teacher.awards && teacher.awards.length > 0 && (
-                                <div>
-                                  <p className="text-slate-500 font-medium mb-1">
-                                    Awards:
-                                  </p>
-                                  {teacher.awards.map((award, idx) => (
-                                    <p key={idx} className="text-slate-700 text-sm">
-                                      {award.title} ({award.year}) - {award.organization}
-                                    </p>
-                                  ))}
-                                </div>
-                              )}
-                              {teacher.officeHours && teacher.officeHours.length > 0 && (
-                                <div className="pt-2 border-t border-slate-100">
-                                  <p className="text-slate-500 font-medium mb-1">
-                                    Office Hours:
-                                  </p>
-                                  {teacher.officeHours.map((hours, idx) => (
-                                    <p key={idx} className="text-slate-700 text-sm">
-                                      {hours.day}: {hours.startTime} - {hours.endTime}
-                                      {hours.byAppointment && " (By Appointment)"}
-                                    </p>
-                                  ))}
-                                </div>
-                              )}
-                              {teacher.bio && (
-                                <div className="pt-2 border-t border-slate-100">
-                                  <p className="text-slate-500 font-medium mb-1">
-                                    Bio:
-                                  </p>
-                                  <p className="text-slate-700 text-sm">
-                                    {teacher.bio}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                          )}
                         </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))
-            )}
-          </tbody>
-        </table>
+                      </div>
+
+                      {/* Professional Details */}
+                      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200/60">
+                        <h4 className="font-semibold text-slate-800 mb-3 flex items-center">
+                          <FaUserTie className="w-4 h-4 text-emerald-600 mr-2" />
+                          Professional Details
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">Employment Type:</span>
+                            <span className="text-slate-700 font-medium">
+                              {teacher.employmentType || "-"}
+                            </span>
+                          </div>
+                          {teacher.officeLocation && (
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">Office:</span>
+                              <span className="text-slate-700 font-medium">
+                                {teacher.officeLocation}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Academic Information */}
+                      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200/60">
+                        <h4 className="font-semibold text-slate-800 mb-3 flex items-center">
+                          <FaGraduationCap className="w-4 h-4 text-amber-600 mr-2" />
+                          Academic Information
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          {teacher.qualification && (
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">Qualification:</span>
+                              <span className="text-slate-700 font-medium">
+                                {teacher.qualification}
+                              </span>
+                            </div>
+                          )}
+                          {teacher.specialization && teacher.specialization.length > 0 && (
+                            <div>
+                              <span className="text-slate-500 block mb-1">Specialization:</span>
+                              <span className="text-slate-700 font-medium">
+                                {teacher.specialization.join(", ")}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Pagination */}
       {filteredTeachers.length > 0 && (
         <div className="px-6 py-4 bg-gradient-to-r from-slate-50 via-blue-50/30 to-slate-50 border-t border-slate-200/80 flex items-center justify-between">
           <div className="text-sm text-slate-600 font-medium">
