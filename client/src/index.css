@@ -1,2 +1,23 @@
-
 @import "tailwindcss";
+
+@keyframes fire {
+  0% {
+    filter: hue-rotate(0deg) brightness(1);
+  }
+  25% {
+    filter: hue-rotate(20deg) brightness(1.2);
+  }
+  50% {
+    filter: hue-rotate(-20deg) brightness(1.3);
+  }
+  75% {
+    filter: hue-rotate(15deg) brightness(1.1);
+  }
+  100% {
+    filter: hue-rotate(0deg) brightness(1);
+  }
+}
+
+.animate-fire {
+  animation: fire 2s infinite ease-in-out alternate;
+}

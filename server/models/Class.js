@@ -20,6 +20,7 @@ const classSchema = new mongoose.Schema(
       ref: "Teacher",
       required: true,
     },
+    year: { type: String, trim: true },
     semester: { type: String, trim: true },
     credits: { type: Number, min: 0 },
     room: { type: String, trim: true },

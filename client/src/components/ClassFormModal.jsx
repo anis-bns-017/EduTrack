@@ -13,13 +13,25 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
     room: "",
     schedule: [{ day: "", time: "" }],
   });
-
   const [teachers, setTeachers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loadingTeachers, setLoadingTeachers] = useState(false);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firstInputRef = useRef(null);
+
+  // Helper function to get department ID from teacher object
+  const getTeacherDepartmentId = (teacher) => {
+    if (!teacher.department) return null;
+    if (typeof teacher.department === 'string') return teacher.department;
+    if (typeof teacher.department === 'object' && teacher.department._id) return teacher.department._id;
+    return null;
+  };
+
+  // Filter teachers based on selected department
+  const filteredTeachers = formData.department
+    ? teachers.filter(teacher => getTeacherDepartmentId(teacher) === formData.department)
+    : teachers;
 
   // --- helper: normalize API shapes to an array ---
   const toArray = (payload) => {
@@ -88,6 +100,16 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
       .finally(() => setLoadingDepartments(false));
   }, []);
 
+  // Clear teacher selection if it doesn't match selected department
+  useEffect(() => {
+    if (formData.department && teachers.length > 0) {
+      const selectedTeacher = teachers.find(t => t._id === formData.teacher);
+      if (selectedTeacher && getTeacherDepartmentId(selectedTeacher) !== formData.department) {
+        setFormData(prev => ({ ...prev, teacher: "" }));
+      }
+    }
+  }, [formData.department, teachers, formData.teacher]);
+
   // Focus first input when modal opens
   useEffect(() => {
     if (open) {
@@ -124,12 +146,10 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     // Clean + coerce
     const cleanedSchedule = formData.schedule
       .map((s) => ({ day: s.day.trim(), time: s.time.trim() }))
       .filter((s) => s.day && s.time);
-
     const payload = {
       courseCode: formData.courseCode.trim(),
       className: formData.className.trim(),
@@ -142,12 +162,10 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
       room: formData.room.trim(),
       schedule: cleanedSchedule,
     };
-
     if (!payload.className || !payload.subject || !payload.teacher || !payload.department) {
       alert("Please fill Class Name, Subject, Teacher, and Department.");
       return;
     }
-
     setIsSubmitting(true);
     Promise.resolve(onSave(payload))
       .catch(() => {
@@ -159,9 +177,8 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
   };
 
   if (!open) return null;
-
   const deptList = Array.isArray(departments) ? departments : [];
-  const teacherList = Array.isArray(teachers) ? teachers : [];
+  const teacherList = Array.isArray(filteredTeachers) ? filteredTeachers : [];
 
   return (
     <>
@@ -171,7 +188,6 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
         className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 transition-opacity"
         aria-hidden="true"
       />
-
       {/* Modal */}
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
         <div
@@ -192,7 +208,6 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
           >
             &times;
           </button>
-
           <div className="p-6">
             <h2
               id="class-form-title"
@@ -200,7 +215,6 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
             >
               {initialData ? "Edit Class" : "Add Class"}
             </h2>
-
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block mb-2 font-medium" htmlFor="courseCode">
@@ -217,7 +231,6 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
                   disabled={isSubmitting}
                 />
               </div>
-
               <div>
                 <label className="block mb-2 font-medium" htmlFor="className">
                   Class Name <span className="text-red-600">*</span>
@@ -235,7 +248,6 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
                   disabled={isSubmitting}
                 />
               </div>
-
               <div>
                 <label className="block mb-2 font-medium" htmlFor="subject">
                   Subject <span className="text-red-600">*</span>
@@ -252,7 +264,6 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
                   disabled={isSubmitting}
                 />
               </div>
-
               <div>
                 <label className="block mb-2 font-medium" htmlFor="department">
                   Department <span className="text-red-600">*</span>
@@ -274,7 +285,6 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
                   ))}
                 </select>
               </div>
-
               <div>
                 <label className="block mb-2 font-medium" htmlFor="semester">
                   Semester
@@ -290,7 +300,6 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
                   disabled={isSubmitting}
                 />
               </div>
-
               <div>
                 <label className="block mb-2 font-medium" htmlFor="credits">
                   Credits
@@ -307,7 +316,6 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
                   disabled={isSubmitting}
                 />
               </div>
-
               <div>
                 <label className="block mb-2 font-medium" htmlFor="teacher">
                   Teacher <span className="text-red-600">*</span>
@@ -321,15 +329,21 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
                   className="w-full border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
                   disabled={loadingTeachers || isSubmitting}
                 >
-                  <option value="">Select Teacher</option>
+                  <option value="">
+                    {formData.department 
+                      ? (teacherList.length > 0 
+                          ? "Select Teacher" 
+                          : "No teachers in this department")
+                      : "Select Department first"
+                    }
+                  </option>
                   {teacherList.map((t) => (
                     <option key={t._id} value={t._id}>
-                      {t.name}
+                      {t.firstName + " " + t.lastName}
                     </option>
                   ))}
                 </select>
               </div>
-
               <div>
                 <label className="block mb-2 font-medium" htmlFor="room">
                   Room
@@ -345,7 +359,6 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
                   disabled={isSubmitting}
                 />
               </div>
-
               {/* Schedule Section */}
               <div>
                 <label className="block mb-2 font-medium">Schedule</label>
@@ -391,7 +404,6 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
                   + Add another schedule
                 </button>
               </div>
-
               <button
                 type="submit"
                 disabled={loadingTeachers || loadingDepartments || isSubmitting}

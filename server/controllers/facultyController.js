@@ -40,7 +40,7 @@ export const createFaculty = async (req, res) => {
       description,
       status,
     } = req.body;
-    console.log("Creating faculty:", name, code, dean);
+    // console.log("Creating faculty:", name, code, dean);
 
     if (!name || !code || !dean) {
       return res
