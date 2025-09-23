@@ -24,7 +24,7 @@ import {
   Zap,
   ChevronDown,
   X,
-  ShieldAlert
+  ShieldAlert,
 } from "lucide-react";
 
 export default function Class() {
@@ -114,7 +114,9 @@ export default function Class() {
           cls.courseCode?.toLowerCase().includes(term) ||
           cls.subject.toLowerCase().includes(term) ||
           cls.department?.name?.toLowerCase().includes(term) ||
-          cls.teacher?.name?.toLowerCase().includes(term)
+          cls.teacher?.firstName?.toLowerCase().includes(term) ||
+          cls.teacher?.middleName?.toLowerCase().includes(term) ||
+          cls.teacher?.lastName?.toLowerCase().includes(term)
       );
       setFilteredClasses(filtered);
     }
@@ -228,6 +230,8 @@ export default function Class() {
       </div>
     );
 
+  console.log("Classes data:", classes);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       {/* Header */}
@@ -260,7 +264,7 @@ export default function Class() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 mt-4 md:mt-8">
+      <div className="max-w-8xl mx-auto px-3 sm:px-4 lg:px-6 mt-4 md:mt-8">
         {/* Enhanced Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
           {/* Total Classes Card */}
@@ -626,7 +630,7 @@ export default function Class() {
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex items-center">
                           <Users className="h-4 w-4 mr-1 text-gray-400" />
-                          {cls.teacher?.name || "-"}
+                          {cls.teacher?.firstName + " " + cls.teacher?.middleName + " " + cls.teacher?.lastName || "-"}
                         </div>
                       </td>
                       <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">

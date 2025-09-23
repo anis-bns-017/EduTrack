@@ -7,6 +7,7 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
     className: "",
     subject: "",
     department: "",
+    year: "",
     semester: "",
     credits: "",
     teacher: "",
@@ -23,14 +24,17 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
   // Helper function to get department ID from teacher object
   const getTeacherDepartmentId = (teacher) => {
     if (!teacher.department) return null;
-    if (typeof teacher.department === 'string') return teacher.department;
-    if (typeof teacher.department === 'object' && teacher.department._id) return teacher.department._id;
+    if (typeof teacher.department === "string") return teacher.department;
+    if (typeof teacher.department === "object" && teacher.department._id)
+      return teacher.department._id;
     return null;
   };
 
   // Filter teachers based on selected department
   const filteredTeachers = formData.department
-    ? teachers.filter(teacher => getTeacherDepartmentId(teacher) === formData.department)
+    ? teachers.filter(
+        (teacher) => getTeacherDepartmentId(teacher) === formData.department
+      )
     : teachers;
 
   // --- helper: normalize API shapes to an array ---
@@ -52,6 +56,7 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
         subject: initialData.subject || "",
         department: initialData.department?._id || initialData.department || "",
         semester: initialData.semester || "",
+        year: initialData.year || "",
         credits:
           typeof initialData.credits === "number"
             ? String(initialData.credits)
@@ -71,6 +76,7 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
         className: "",
         subject: "",
         department: "",
+        year: "",
         semester: "",
         credits: "",
         teacher: "",
@@ -103,9 +109,12 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
   // Clear teacher selection if it doesn't match selected department
   useEffect(() => {
     if (formData.department && teachers.length > 0) {
-      const selectedTeacher = teachers.find(t => t._id === formData.teacher);
-      if (selectedTeacher && getTeacherDepartmentId(selectedTeacher) !== formData.department) {
-        setFormData(prev => ({ ...prev, teacher: "" }));
+      const selectedTeacher = teachers.find((t) => t._id === formData.teacher);
+      if (
+        selectedTeacher &&
+        getTeacherDepartmentId(selectedTeacher) !== formData.department
+      ) {
+        setFormData((prev) => ({ ...prev, teacher: "" }));
       }
     }
   }, [formData.department, teachers, formData.teacher]);
@@ -155,14 +164,19 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
       className: formData.className.trim(),
       subject: formData.subject.trim(),
       department: formData.department, // string ObjectId (Mongoose will cast)
+      year: formData.year.trim(),
       semester: formData.semester.trim(),
-      credits:
-        formData.credits === "" ? undefined : Number(formData.credits),
+      credits: formData.credits === "" ? undefined : Number(formData.credits),
       teacher: formData.teacher, // string ObjectId
       room: formData.room.trim(),
       schedule: cleanedSchedule,
     };
-    if (!payload.className || !payload.subject || !payload.teacher || !payload.department) {
+    if (
+      !payload.className ||
+      !payload.subject ||
+      !payload.teacher ||
+      !payload.department
+    ) {
       alert("Please fill Class Name, Subject, Teacher, and Department.");
       return;
     }
@@ -286,6 +300,22 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
                 </select>
               </div>
               <div>
+                <label className="block mb-2 font-medium" htmlFor="year">
+                  Year
+                </label>
+                <input
+                  id="year"
+                  name="year"
+                  type="text"
+                  value={formData.year}
+                  onChange={handleChange}
+                  placeholder="e.g., 1st, 2nd, 3rd"
+                  className="w-full border border-gray-300 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
                 <label className="block mb-2 font-medium" htmlFor="semester">
                   Semester
                 </label>
@@ -295,7 +325,7 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
                   type="text"
                   value={formData.semester}
                   onChange={handleChange}
-                  placeholder="e.g., Fall 2025"
+                  placeholder="e.g. 1st, 2nd, 3rd"
                   className="w-full border border-gray-300 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
                   disabled={isSubmitting}
                 />
@@ -319,6 +349,11 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
               <div>
                 <label className="block mb-2 font-medium" htmlFor="teacher">
                   Teacher <span className="text-red-600">*</span>
+                  {formData.department && (
+                    <span className="text-xs text-gray-500 ml-2">
+                      (Filtered by selected department)
+                    </span>
+                  )}
                 </label>
                 <select
                   id="teacher"
@@ -330,14 +365,18 @@ export default function ClassFormModal({ open, setOpen, onSave, initialData }) {
                   disabled={loadingTeachers || isSubmitting}
                 >
                   <option value="">
-                    {formData.department 
-                      ? (teacherList.length > 0 
-                          ? "Select Teacher" 
-                          : "No teachers in this department")
-                      : "Select Department first"
-                    }
+                    {formData.department
+                      ? filteredTeachers.length > 0
+                        ? "Select Teacher"
+                        : "No teachers available in this department"
+                      : "Please select a department first"}
                   </option>
-                  {teacherList.map((t) => (
+                  {loadingTeachers && (
+                    <option value="" disabled>
+                      Loading teachers...
+                    </option>
+                  )}
+                  {filteredTeachers.map((t) => (
                     <option key={t._id} value={t._id}>
                       {t.firstName + " " + t.lastName}
                     </option>

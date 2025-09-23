@@ -2,6 +2,9 @@ import Teacher from "../models/Teacher.js";
 import Department from "../models/Department.js";
 import Faculty from "../models/Faculty.js"; // Added Faculty import
 
+import mongoose from "mongoose";
+mongoose.set('strictPopulate', false); // Add this line
+
 // GET all teachers with advanced filtering, sorting, and pagination
 export const getAllTeachers = async (req, res) => {
   try {

@@ -4,10 +4,11 @@ import Class from "../models/Class.js";
 // @desc Get all classes
 export const getAllClasses = asyncHandler(async (req, res) => {
   const classes = await Class.find()
-    .populate("teacher", "name email")
+    .populate("teacher", "firstName middleName lastName email")
     .populate("course", "courseName courseCode")
     .populate("department", "name");
   res.status(200).json(classes);
+  console.log("Classes: ", classes);
 });
 
 // @desc Create new class
@@ -19,6 +20,7 @@ export const createClass = asyncHandler(async (req, res) => {
     subject,
     department,
     teacher,
+    year,
     semester,
     credits,
     room,
@@ -47,6 +49,7 @@ export const createClass = asyncHandler(async (req, res) => {
     subject,
     department,
     teacher,
+    year,
     semester,
     credits,
     room,

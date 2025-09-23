@@ -366,7 +366,7 @@ export default function Attendance() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 mt-4 md:mt-8">
+      <div className="max-w-8xl mx-auto px-3 sm:px-4 lg:px-6 mt-4 md:mt-8">
         {/* Enhanced Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
           {/* Total Records Card */}
@@ -658,7 +658,7 @@ export default function Attendance() {
                       onChange={(e) => handleFilterChange("dateTo", e.target.value)}
                       className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
                       placeholder="To"
-                    />
+                    />  
                   </div>
                 </div>
               </div>

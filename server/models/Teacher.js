@@ -380,25 +380,54 @@ const teacherSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
-  },
+    toJSON: { 
+      virtuals: true,
+      transform: function(doc, ret) {
+        // Remove sensitive information from JSON output
+        delete ret.password;
+        delete ret.passwordResetToken;
+        delete ret.passwordResetExpires;
+        delete ret.loginAttempts;
+        delete ret.lockUntil;
+        delete ret.isActive;
+        delete ret.__v;
+        return ret;
+      }
+    },
+    toObject: { 
+      virtuals: true,
+      transform: function(doc, ret) {
+        // Remove sensitive information from object output
+        delete ret.password;
+        delete ret.passwordResetToken;
+        delete ret.passwordResetExpires;
+        delete ret.loginAttempts;
+        delete ret.lockUntil;
+        delete ret.isActive;
+        delete ret.__v;
+        return ret;
+      }
+    },
+  }
 );
 
-// Virtuals
+// Virtuals - Fixed with proper error handling
 teacherSchema.virtual("fullName").get(function () {
-  return `${this.firstName} ${this.lastName}`;
+  return `${this.firstName || ''} ${this.lastName || ''}`.trim();
 });
 
 teacherSchema.virtual("formalName").get(function () {
-  return `${this.title ? this.title + " " : ""}${this.firstName} ${this.lastName}`;
+  const name = `${this.firstName || ''} ${this.lastName || ''}`.trim();
+  return this.title ? `${this.title} ${name}` : name;
 });
 
 teacherSchema.virtual("yearsOfService").get(function () {
+  if (!this.joiningDate || !(this.joiningDate instanceof Date)) return 0;
   return Math.floor((new Date() - this.joiningDate) / (365.25 * 24 * 60 * 60 * 1000));
 });
 
 teacherSchema.virtual("age").get(function () {
+  if (!this.dateOfBirth || !(this.dateOfBirth instanceof Date)) return 0;
   return Math.floor((new Date() - this.dateOfBirth) / (365.25 * 24 * 60 * 60 * 1000));
 });
 
@@ -406,29 +435,63 @@ teacherSchema.virtual("isAccountLocked").get(function () {
   return !!(this.lockUntil && this.lockUntil > Date.now());
 });
 
-// Virtual for highest qualification
 teacherSchema.virtual("highestQualification").get(function () {
-  const highest = this.qualifications.find(q => q.isHighest);
-  return highest ? `${highest.degree} in ${highest.field}` : "Not specified";
+  if (!this.qualifications || !Array.isArray(this.qualifications) || this.qualifications.length === 0) {
+    return "Not specified";
+  }
+  const highest = this.qualifications.find(q => q && q.isHighest === true);
+  return highest ? `${highest.degree || ''} in ${highest.field || ''}`.trim() : "Not specified";
+});
+
+// Virtual for contract status
+teacherSchema.virtual("contractStatus").get(function () {
+  if (!this.contractEndDate) return "Permanent";
+  const now = new Date();
+  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  
+  if (this.contractEndDate < now) return "Expired";
+  if (this.contractEndDate <= thirtyDaysFromNow) return "Expiring Soon";
+  return "Active";
+});
+
+// Virtual for complete address
+teacherSchema.virtual("completeAddress").get(function () {
+  if (!this.address) return "Not specified";
+  
+  const parts = [
+    this.address.street,
+    this.address.city,
+    this.address.state,
+    this.address.postalCode,
+    this.address.country
+  ].filter(part => part && part.trim() !== '');
+  
+  return parts.join(', ') || "Not specified";
 });
 
 // Indexes
+teacherSchema.index({ employeeId: 1 }, { unique: true });
+teacherSchema.index({ email: 1 }, { unique: true });
 teacherSchema.index({ department: 1 });
 teacherSchema.index({ faculty: 1 });
 teacherSchema.index({ designation: 1 });
 teacherSchema.index({ status: 1 });
 teacherSchema.index({ "address.city": 1 });
 teacherSchema.index({ createdAt: 1 });
+teacherSchema.index({ joiningDate: 1 });
+teacherSchema.index({ dateOfBirth: 1 });
 
 // Compound indexes for better query performance
 teacherSchema.index({ department: 1, status: 1 });
 teacherSchema.index({ faculty: 1, designation: 1 });
 teacherSchema.index({ lastName: 1, firstName: 1 });
+teacherSchema.index({ status: 1, isActive: 1 });
 
 // Index for qualifications
 teacherSchema.index({ "qualifications.degree": 1 });
 teacherSchema.index({ "qualifications.field": 1 });
 teacherSchema.index({ "qualifications.institution": 1 });
+teacherSchema.index({ "qualifications.isHighest": 1 });
 
 // Text search index for searching across multiple fields
 teacherSchema.index({
@@ -437,14 +500,20 @@ teacherSchema.index({
   email: "text",
   specialization: "text",
   researchInterests: "text",
-  "qualifications.field": "text"
+  "qualifications.field": "text",
+  "qualifications.institution": "text"
 });
 
 // Password hashing middleware
 teacherSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
+  
+  try {
+    this.password = await bcrypt.hash(this.password, 12);
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 teacherSchema.pre("save", function (next) {
@@ -453,9 +522,32 @@ teacherSchema.pre("save", function (next) {
   next();
 });
 
+// Validation for required date fields
+teacherSchema.pre("save", function (next) {
+  if (!this.joiningDate) {
+    return next(new Error("Joining date is required"));
+  }
+  if (!this.dateOfBirth) {
+    return next(new Error("Date of birth is required"));
+  }
+  next();
+});
+
 // Query middleware to filter out inactive teachers
 teacherSchema.pre(/^find/, function (next) {
   this.find({ isActive: { $ne: false } });
+  next();
+});
+
+// Query middleware to populate commonly used references
+teacherSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: 'department',
+    select: 'name code'
+  }).populate({
+    path: 'faculty',
+    select: 'name'
+  });
   next();
 });
 
@@ -501,16 +593,51 @@ teacherSchema.methods.incrementLoginAttempts = function () {
 
 // Static methods
 teacherSchema.statics.getTeachersByDepartment = function (departmentId) {
-  return this.find({ department: departmentId }).populate("department");
+  return this.find({ department: departmentId })
+    .populate("department", "name code")
+    .populate("faculty", "name");
 };
 
 teacherSchema.statics.getTeachersByStatus = function (status) {
-  return this.find({ status: status });
+  return this.find({ status: status })
+    .populate("department", "name code")
+    .populate("faculty", "name");
 };
 
-// Method to get teachers by highest qualification
 teacherSchema.statics.getTeachersByQualification = function (degree) {
-  return this.find({ "qualifications.degree": degree, "qualifications.isHighest": true });
+  return this.find({ 
+    "qualifications.degree": degree, 
+    "qualifications.isHighest": true 
+  })
+  .populate("department", "name code")
+  .populate("faculty", "name");
+};
+
+// Method to search teachers with text search
+teacherSchema.statics.searchTeachers = function (searchTerm) {
+  return this.find(
+    { $text: { $search: searchTerm } },
+    { score: { $meta: "textScore" } }
+  )
+  .sort({ score: { $meta: "textScore" } })
+  .populate("department", "name code")
+  .populate("faculty", "name");
+};
+
+// Method to get teachers with expiring contracts
+teacherSchema.statics.getTeachersWithExpiringContracts = function (days = 30) {
+  const targetDate = new Date();
+  targetDate.setDate(targetDate.getDate() + days);
+  
+  return this.find({
+    contractEndDate: {
+      $lte: targetDate,
+      $gte: new Date()
+    },
+    status: "Active"
+  })
+  .populate("department", "name code")
+  .populate("faculty", "name");
 };
 
 const Teacher = mongoose.model("Teacher", teacherSchema);
