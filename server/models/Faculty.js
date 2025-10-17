@@ -15,8 +15,9 @@ const facultySchema = new mongoose.Schema(
       uppercase: true, // e.g., "SCI", "ENG", "ART"
     },
     dean: {
-      type: String,
-      required: true, 
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Teacher", // Reference to a Teacher who is the dean
+      required: true,
     },
     departments: [
       {
@@ -52,5 +53,9 @@ const facultySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Index for better query performance
+facultySchema.index({ code: 1 });
+facultySchema.index({ status: 1 });
 
 export default mongoose.model("Faculty", facultySchema);
