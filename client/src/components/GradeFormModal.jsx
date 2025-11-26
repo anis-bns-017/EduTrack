@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   X,
@@ -32,7 +30,14 @@ import {
   MessageSquare,
   Shield,
   History,
-  Settings
+  Settings,
+  Target,
+  TrendingUp,
+  BarChart3,
+  Database,
+  Tag,
+  UserCheck,
+  Filter
 } from "lucide-react";
 import axios from "../../api/axios";
 import React from "react";
@@ -55,6 +60,7 @@ const GradeFormModal = ({
     student: "",
     department: "",
     program: "",
+    specialization: "",
     course: "",
     section: "",
     instructor: "",
@@ -65,29 +71,60 @@ const GradeFormModal = ({
     creditHours: 0,
     isAudit: false,
     isRepeat: false,
+    repeatCount: 0,
     previousGrade: "",
     remarks: "",
     assessments: [],
-    // NEW: Additional fields from the model
-    createdBy: currentUser?.id || "",
-    updatedBy: currentUser?.id || "",
+    // Grade calculation fields
+    totalScore: 0,
+    maxTotalScore: 0,
+    percentage: 0,
+    finalGrade: "",
+    gradePoint: 0,
+    gpaScale: 4.0,
+    qualityPoints: 0,
+    resultStatus: "In Progress",
+    academicStanding: "Good",
+    honorRoll: "None",
+    // Attendance fields
+    attendanceRate: 0,
+    attendanceImpact: "Neutral",
+    // Learning outcomes
+    learningOutcomesAchievement: [],
+    // System fields
+    createdBy: currentUser?._id || "",
+    updatedBy: currentUser?._id || "",
     isLocked: false,
     lockedBy: "",
     lockedAt: null,
+    isVerified: false,
+    verifiedBy: "",
+    verifiedDate: null,
+    version: 1,
+    // Moderation fields
     moderationStatus: "None",
     moderatedBy: "",
     moderatedAt: null,
     moderationNotes: "",
+    // Appeal fields
     appealStatus: "None",
     appealReason: "",
     appealDecision: "",
     appealDecidedBy: "",
     appealDecidedDate: null,
+    // Publication fields
     isPublished: false,
     publishedBy: "",
     publishedDate: null,
-    version: 1,
+    // Integration fields
+    lmsId: "",
+    sisId: "",
+    // Metadata
+    tags: [],
+    metadata: {},
   }), [currentUser]);
+
+  console.log("Current user: ", currentUser);
 
   const initialAssessmentState = useMemo(() => ({
     title: "",
@@ -103,10 +140,21 @@ const GradeFormModal = ({
     feedback: "",
     isAbsent: false,
     isExcused: false,
+    isExtraCredit: false,
     status: "Pending",
-    // NEW: Additional fields from the model
-    attachments: [],
+    // Advanced assessment fields
+    isGroupWork: false,
+    groupMembers: [],
+    isAnonymous: false,
+    isModerated: false,
+    moderatedBy: "",
+    moderatedDate: null,
+    timeSpent: 0,
+    attemptCount: 1,
+    lastAttemptDate: "",
     rubricScores: [],
+    learningOutcomes: [],
+    attachments: [],
   }), []);
 
   const [formData, setFormData] = useState(initialFormState);
@@ -123,6 +171,11 @@ const GradeFormModal = ({
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [showModerationOptions, setShowModerationOptions] = useState(false);
   const [showAppealOptions, setShowAppealOptions] = useState(false);
+  const [showAnalyticsOptions, setShowAnalyticsOptions] = useState(false);
+  const [showIntegrationOptions, setShowIntegrationOptions] = useState(false);
+  const [newTag, setNewTag] = useState("");
+  const [newMetadataKey, setNewMetadataKey] = useState("");
+  const [newMetadataValue, setNewMetadataValue] = useState("");
 
   const programs = [
     "Undergraduate",
@@ -143,10 +196,21 @@ const GradeFormModal = ({
     "Lab Work",
     "Participation",
     "Attendance",
+    "Thesis",
+    "Dissertation",
+    "Portfolio",
+    "Practical Exam",
+    "Oral Exam",
+    "Peer Review",
   ];
-  const statusOptions = ["Pending", "Graded", "Appealed", "Regraded"];
+  const statusOptions = ["Pending", "Graded", "Appealed", "Regraded", "Exempted"];
   const moderationStatusOptions = ["None", "Pending", "Approved", "Rejected"];
   const appealStatusOptions = ["None", "Requested", "Under Review", "Approved", "Rejected"];
+  const resultStatusOptions = ["Pass", "Fail", "Incomplete", "Withdrawn", "In Progress", "Exempted"];
+  const academicStandingOptions = ["Excellent", "Good", "Satisfactory", "Probation", "Suspension"];
+  const honorRollOptions = ["None", "Dean's List", "President's List", "Chancellor's List"];
+  const attendanceImpactOptions = ["Positive", "Neutral", "Negative"];
+  const gpaScaleOptions = [4.0, 5.0, 10.0];
 
   // Use teachers from prop if available, otherwise use fetched teachers
   const allTeachers = useMemo(() => {
@@ -192,43 +256,78 @@ const GradeFormModal = ({
     }, 0);
     
     let letterGrade = "F";
+    let gradePoint = 0.00;
+    
     if (totalWeight > 0) {
       const percentage = (weightedScore / totalWeight) * 100;
-      if (percentage >= 90) letterGrade = "A+";
-      else if (percentage >= 85) letterGrade = "A";
-      else if (percentage >= 80) letterGrade = "A-";
-      else if (percentage >= 75) letterGrade = "B+";
-      else if (percentage >= 70) letterGrade = "B";
-      else if (percentage >= 65) letterGrade = "B-";
-      else if (percentage >= 60) letterGrade = "C+";
-      else if (percentage >= 55) letterGrade = "C";
-      else if (percentage >= 50) letterGrade = "C-";
-      else if (percentage >= 45) letterGrade = "D";
-      else letterGrade = "F";
+      
+      // Use the GPA scale from the form
+      const gpaScale = formData.gpaScale || 4.0;
+      
+      if (gpaScale === 4.0) {
+        if (percentage >= 97) { letterGrade = "A+"; gradePoint = 4.0; }
+        else if (percentage >= 93) { letterGrade = "A"; gradePoint = 4.0; }
+        else if (percentage >= 90) { letterGrade = "A-"; gradePoint = 3.7; }
+        else if (percentage >= 87) { letterGrade = "B+"; gradePoint = 3.3; }
+        else if (percentage >= 83) { letterGrade = "B"; gradePoint = 3.0; }
+        else if (percentage >= 80) { letterGrade = "B-"; gradePoint = 2.7; }
+        else if (percentage >= 77) { letterGrade = "C+"; gradePoint = 2.3; }
+        else if (percentage >= 73) { letterGrade = "C"; gradePoint = 2.0; }
+        else if (percentage >= 70) { letterGrade = "C-"; gradePoint = 1.7; }
+        else if (percentage >= 67) { letterGrade = "D+"; gradePoint = 1.3; }
+        else if (percentage >= 65) { letterGrade = "D"; gradePoint = 1.0; }
+        else { letterGrade = "F"; gradePoint = 0.0; }
+      } else if (gpaScale === 5.0) {
+        if (percentage >= 97) { letterGrade = "A+"; gradePoint = 5.0; }
+        else if (percentage >= 93) { letterGrade = "A"; gradePoint = 5.0; }
+        else if (percentage >= 90) { letterGrade = "A-"; gradePoint = 4.7; }
+        else if (percentage >= 87) { letterGrade = "B+"; gradePoint = 4.3; }
+        else if (percentage >= 83) { letterGrade = "B"; gradePoint = 4.0; }
+        else if (percentage >= 80) { letterGrade = "B-"; gradePoint = 3.7; }
+        else if (percentage >= 77) { letterGrade = "C+"; gradePoint = 3.3; }
+        else if (percentage >= 73) { letterGrade = "C"; gradePoint = 3.0; }
+        else if (percentage >= 70) { letterGrade = "C-"; gradePoint = 2.7; }
+        else if (percentage >= 67) { letterGrade = "D+"; gradePoint = 2.3; }
+        else if (percentage >= 65) { letterGrade = "D"; gradePoint = 2.0; }
+        else { letterGrade = "F"; gradePoint = 0.0; }
+      } else if (gpaScale === 10.0) {
+        if (percentage >= 97) { letterGrade = "A+"; gradePoint = 10.0; }
+        else if (percentage >= 93) { letterGrade = "A"; gradePoint = 10.0; }
+        else if (percentage >= 90) { letterGrade = "A-"; gradePoint = 9.0; }
+        else if (percentage >= 87) { letterGrade = "B+"; gradePoint = 8.0; }
+        else if (percentage >= 83) { letterGrade = "B"; gradePoint = 7.0; }
+        else if (percentage >= 80) { letterGrade = "B-"; gradePoint = 6.0; }
+        else if (percentage >= 77) { letterGrade = "C+"; gradePoint = 5.0; }
+        else if (percentage >= 73) { letterGrade = "C"; gradePoint = 4.0; }
+        else if (percentage >= 70) { letterGrade = "C-"; gradePoint = 3.0; }
+        else if (percentage >= 67) { letterGrade = "D+"; gradePoint = 2.0; }
+        else if (percentage >= 65) { letterGrade = "D"; gradePoint = 1.0; }
+        else { letterGrade = "F"; gradePoint = 0.0; }
+      }
     }
     
-    let gradePoint = 0.00;
-    if (letterGrade === "A+") gradePoint = 4.00;
-    else if (letterGrade === "A") gradePoint = 3.75;
-    else if (letterGrade === "A-") gradePoint = 3.50;
-    else if (letterGrade === "B+") gradePoint = 3.25;
-    else if (letterGrade === "B") gradePoint = 3.00;
-    else if (letterGrade === "B-") gradePoint = 2.75;
-    else if (letterGrade === "C+") gradePoint = 2.50;
-    else if (letterGrade === "C") gradePoint = 2.25;
-    else if (letterGrade === "C-") gradePoint = 2.00;
-    else if (letterGrade === "D") gradePoint = 1.00;
-    
+    // Determine result status based on grade
     let resultStatus = "Fail";
-    if (['F', 'NP'].includes(letterGrade)) {
-      resultStatus = 'Fail';
-    } else if (['I', 'W'].includes(letterGrade)) {
-      resultStatus = 'Incomplete';
-    } else if (letterGrade === 'P') {
-      resultStatus = 'Pass';
+    if (["F", "NP", "NC"].includes(letterGrade)) {
+      resultStatus = "Fail";
+    } else if (["I", "W", "IP"].includes(letterGrade)) {
+      resultStatus = "Incomplete";
+    } else if (["P", "CR", "AU"].includes(letterGrade)) {
+      resultStatus = "Pass";
     } else if (gradePoint >= 2.0) {
-      resultStatus = 'Pass';
+      resultStatus = "Pass";
     }
+    
+    // Determine academic standing
+    let academicStanding = "Suspension";
+    if (gradePoint >= 3.5) academicStanding = "Excellent";
+    else if (gradePoint >= 3.0) academicStanding = "Good";
+    else if (gradePoint >= 2.0) academicStanding = "Satisfactory";
+    else if (gradePoint >= 1.0) academicStanding = "Probation";
+    
+    // Calculate quality points
+    const creditHours = parseFloat(formData.creditHours) || 0;
+    const qualityPoints = gradePoint * creditHours;
     
     return {
       totalWeight,
@@ -236,9 +335,11 @@ const GradeFormModal = ({
       percentage: totalWeight > 0 ? (weightedScore / totalWeight) * 100 : 0,
       letterGrade,
       gradePoint,
-      resultStatus
+      resultStatus,
+      academicStanding,
+      qualityPoints
     };
-  }, [formData.assessments]);
+  }, [formData.assessments, formData.gpaScale, formData.creditHours]);
 
   // Fetch teachers
   const fetchTeachers = useCallback(async () => {
@@ -301,6 +402,23 @@ const GradeFormModal = ({
     }
   }, [formData.department, formData.course, filteredCourses]);
 
+  // Update calculated fields when assessments change
+  useEffect(() => {
+    const summary = gradeSummary;
+    setFormData((prev) => ({
+      ...prev,
+      totalScore: summary.weightedScore,
+      maxTotalScore: summary.totalWeight,
+      percentage: summary.percentage,
+      finalGrade: summary.letterGrade,
+      gradePoint: summary.gradePoint,
+      resultStatus: summary.resultStatus,
+      academicStanding: summary.academicStanding,
+      qualityPoints: summary.qualityPoints,
+      updatedBy: currentUser?._id || "",
+    }));
+  }, [gradeSummary, currentUser]);
+
   // Validate form
   useEffect(() => {
     const requiredFields = ['student', 'department', 'program', 'section', 'instructor', 'term', 'academicYear'];
@@ -317,6 +435,7 @@ const GradeFormModal = ({
           student: initialData.student?._id || initialData.student || "",
           department: initialData.department?._id || initialData.department || "",
           program: initialData.program || "",
+          specialization: initialData.specialization || "",
           course: initialData.course?._id || initialData.course || "",
           section: initialData.section || "",
           instructor: initialData.instructor?._id || initialData.instructor || "",
@@ -327,28 +446,57 @@ const GradeFormModal = ({
           creditHours: initialData.creditHours || 0,
           isAudit: initialData.isAudit || false,
           isRepeat: initialData.isRepeat || false,
+          repeatCount: initialData.repeatCount || 0,
           previousGrade: initialData.previousGrade || "",
           remarks: initialData.remarks || "",
           assessments: initialData.assessments || [],
-          // NEW: Additional fields from the model
-          createdBy: initialData.createdBy || currentUser?.id || "",
-          updatedBy: initialData.updatedBy || currentUser?.id || "",
+          // Grade calculation fields
+          totalScore: initialData.totalScore || 0,
+          maxTotalScore: initialData.maxTotalScore || 0,
+          percentage: initialData.percentage || 0,
+          finalGrade: initialData.finalGrade || "",
+          gradePoint: initialData.gradePoint || 0,
+          gpaScale: initialData.gpaScale || 4.0,
+          qualityPoints: initialData.qualityPoints || 0,
+          resultStatus: initialData.resultStatus || "In Progress",
+          academicStanding: initialData.academicStanding || "Good",
+          honorRoll: initialData.honorRoll || "None",
+          // Attendance fields
+          attendanceRate: initialData.attendanceRate || 0,
+          attendanceImpact: initialData.attendanceImpact || "Neutral",
+          // Learning outcomes
+          learningOutcomesAchievement: initialData.learningOutcomesAchievement || [],
+          // System fields
+          createdBy: initialData.createdBy || currentUser?._id || "",
+          updatedBy: initialData.updatedBy || currentUser?._id || "",
           isLocked: initialData.isLocked || false,
           lockedBy: initialData.lockedBy || "",
           lockedAt: initialData.lockedAt || null,
+          isVerified: initialData.isVerified || false,
+          verifiedBy: initialData.verifiedBy || "",
+          verifiedDate: initialData.verifiedDate || null,
+          version: initialData.version || 1,
+          // Moderation fields
           moderationStatus: initialData.moderationStatus || "None",
           moderatedBy: initialData.moderatedBy || "",
           moderatedAt: initialData.moderatedAt || null,
           moderationNotes: initialData.moderationNotes || "",
+          // Appeal fields
           appealStatus: initialData.appealStatus || "None",
           appealReason: initialData.appealReason || "",
           appealDecision: initialData.appealDecision || "",
           appealDecidedBy: initialData.appealDecidedBy || "",
           appealDecidedDate: initialData.appealDecidedDate || null,
+          // Publication fields
           isPublished: initialData.isPublished || false,
           publishedBy: initialData.publishedBy || "",
           publishedDate: initialData.publishedDate || null,
-          version: initialData.version || 1,
+          // Integration fields
+          lmsId: initialData.lmsId || "",
+          sisId: initialData.sisId || "",
+          // Metadata
+          tags: initialData.tags || [],
+          metadata: initialData.metadata || {},
         });
       } else {
         setFormData(initialFormState);
@@ -361,6 +509,8 @@ const GradeFormModal = ({
       setShowAdvancedOptions(false);
       setShowModerationOptions(false);
       setShowAppealOptions(false);
+      setShowAnalyticsOptions(false);
+      setShowIntegrationOptions(false);
     }
   }, [initialData, open, initialFormState, initialAssessmentState, currentUser]);
 
@@ -377,7 +527,7 @@ const GradeFormModal = ({
     setFormData((prev) => ({
       ...prev,
       [name]: processedValue,
-      updatedBy: currentUser?.id || "",
+      updatedBy: currentUser?._id || "",
     }));
 
     // Clear error for this field
@@ -457,13 +607,13 @@ const GradeFormModal = ({
       score,
       maxScore,
       weight,
-      gradedBy: newAssessment.status === "Graded" ? currentUser?.id : "",
+      gradedBy: newAssessment.status === "Graded" ? currentUser?._id : "",
     };
 
     setFormData((prev) => ({
       ...prev,
       assessments: [...prev.assessments, assessmentWithId],
-      updatedBy: currentUser?.id || "",
+      updatedBy: currentUser?._id || "",
     }));
 
     setNewAssessment(initialAssessmentState);
@@ -475,8 +625,57 @@ const GradeFormModal = ({
     setFormData((prev) => ({
       ...prev,
       assessments: prev.assessments.filter((_, i) => i !== index),
-      updatedBy: currentUser?.id || "",
+      updatedBy: currentUser?._id || "",
     }));
+  }, [currentUser]);
+
+  const handleAddTag = useCallback(() => {
+    if (!newTag.trim()) return;
+    
+    setFormData((prev) => ({
+      ...prev,
+      tags: [...prev.tags, newTag.trim()],
+      updatedBy: currentUser?._id || "",
+    }));
+    
+    setNewTag("");
+  }, [newTag, currentUser]);
+
+  const handleRemoveTag = useCallback((index) => {
+    setFormData((prev) => ({
+      ...prev,
+      tags: prev.tags.filter((_, i) => i !== index),
+      updatedBy: currentUser?._id || "",
+    }));
+  }, [currentUser]);
+
+  const handleAddMetadata = useCallback(() => {
+    if (!newMetadataKey.trim() || !newMetadataValue.trim()) return;
+    
+    setFormData((prev) => ({
+      ...prev,
+      metadata: {
+        ...prev.metadata,
+        [newMetadataKey.trim()]: newMetadataValue.trim()
+      },
+      updatedBy: currentUser?._id || "",
+    }));
+    
+    setNewMetadataKey("");
+    setNewMetadataValue("");
+  }, [newMetadataKey, newMetadataValue, currentUser]);
+
+  const handleRemoveMetadata = useCallback((key) => {
+    setFormData((prev) => {
+      const newMetadata = { ...prev.metadata };
+      delete newMetadata[key];
+      
+      return {
+        ...prev,
+        metadata: newMetadata,
+        updatedBy: currentUser?._id || "",
+      };
+    });
   }, [currentUser]);
 
   const validateForm = useCallback(() => {
@@ -560,11 +759,15 @@ const GradeFormModal = ({
         year: parseInt(formData.year) || 1,
         semester: parseInt(formData.semester) || 1,
         creditHours: parseFloat(formData.creditHours) || 0,
+        gpaScale: parseFloat(formData.gpaScale) || 4.0,
+        attendanceRate: parseFloat(formData.attendanceRate) || 0,
         assessments: formData.assessments.map(({ id, ...assessment }) => ({
           ...assessment,
           score: parseFloat(assessment.score) || 0,
           maxScore: parseFloat(assessment.maxScore) || 100,
           weight: parseFloat(assessment.weight) || 0,
+          timeSpent: parseFloat(assessment.timeSpent) || 0,
+          attemptCount: parseInt(assessment.attemptCount) || 1,
         })),
         // Include calculated fields
         totalScore: gradeSummary.weightedScore,
@@ -573,10 +776,17 @@ const GradeFormModal = ({
         finalGrade: gradeSummary.letterGrade,
         gradePoint: gradeSummary.gradePoint,
         resultStatus: gradeSummary.resultStatus,
+        academicStanding: gradeSummary.academicStanding,
+        qualityPoints: gradeSummary.qualityPoints,
         // Ensure user fields are set
-        createdBy: formData.createdBy || currentUser?.id,
-        updatedBy: currentUser?.id,
+        createdBy: formData.createdBy || currentUser?._id,
+        updatedBy: currentUser?._id,
+        lockedBy: formData.isLocked ? (formData.lockedBy || currentUser?._id) : "",
+        verifiedBy: formData.isVerified ? (formData.verifiedBy || currentUser?._id) : "",
+        publishedBy: formData.isPublished ? (formData.publishedBy || currentUser?._id) : "",
       };
+
+      console.log("Here is data: ", submitData);
 
       await onSave(submitData);
     } catch (error) {
@@ -683,6 +893,20 @@ const GradeFormModal = ({
                   {formData.assessments.length}
                 </span>
               )}
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab("analytics")}
+            className={`flex-1 py-4 px-6 text-center font-medium transition-all duration-200 ${
+              activeTab === "analytics"
+                ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            }`}
+            aria-selected={activeTab === "analytics"}
+          >
+            <div className="flex items-center justify-center space-x-2">
+              <BarChart3 className="h-4 w-4" />
+              <span>Analytics</span>
             </div>
           </button>
           <button
@@ -799,6 +1023,22 @@ const GradeFormModal = ({
                     )}
                   </div>
 
+                  {/* Specialization Field */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Specialization
+                    </label>
+                    <input
+                      type="text"
+                      name="specialization"
+                      value={formData.specialization}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
+                      placeholder="e.g., Computer Science"
+                    />
+                  </div>
+
                   {/* Section Field */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -876,7 +1116,7 @@ const GradeFormModal = ({
                     )}
                     {formData.department && filteredTeachers.length === 0 && !loadingTeachers && (
                       <p className="text-yellow-600 text-xs mt-1">
-                        No teachers available in the selected department
+                        No teachers available in selected department
                       </p>
                     )}
                   </div>
@@ -922,7 +1162,7 @@ const GradeFormModal = ({
                     )}
                     {formData.department && filteredCourses.length === 0 && (
                       <p className="text-yellow-600 text-xs mt-1">
-                        No courses available in the selected department
+                        No courses available in selected department
                       </p>
                     )}
                   </div>
@@ -1052,6 +1292,64 @@ const GradeFormModal = ({
                       </p>
                     )}
                   </div>
+
+                  {/* GPA Scale Field */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      GPA Scale
+                    </label>
+                    <select
+                      name="gpaScale"
+                      value={formData.gpaScale}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
+                    >
+                      {gpaScaleOptions.map((scale) => (
+                        <option key={scale} value={scale}>
+                          {scale}.0 Scale
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Attendance Rate Field */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Attendance Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      name="attendanceRate"
+                      value={formData.attendanceRate}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting}
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50"
+                    />
+                  </div>
+
+                  {/* Attendance Impact Field */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Attendance Impact
+                    </label>
+                    <select
+                      name="attendanceImpact"
+                      value={formData.attendanceImpact}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
+                    >
+                      {attendanceImpactOptions.map((impact) => (
+                        <option key={impact} value={impact}>
+                          {impact}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {/* Checkboxes */}
@@ -1125,6 +1423,24 @@ const GradeFormModal = ({
                       disabled={isSubmitting}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50"
                       placeholder="Previous grade ID"
+                    />
+                  </div>
+                )}
+
+                {/* Repeat Count (conditional) */}
+                {formData.isRepeat && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Repeat Count
+                    </label>
+                    <input
+                      type="number"
+                      name="repeatCount"
+                      value={formData.repeatCount}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting}
+                      min="0"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50"
                     />
                   </div>
                 )}
@@ -1404,6 +1720,39 @@ const GradeFormModal = ({
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                          <Clock size={16} className="mr-1" />
+                          Time Spent (minutes)
+                        </label>
+                        <input
+                          type="number"
+                          name="timeSpent"
+                          value={newAssessment.timeSpent}
+                          onChange={handleAssessmentChange}
+                          disabled={isSubmitting}
+                          min="0"
+                          step="1"
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Attempt Count
+                        </label>
+                        <input
+                          type="number"
+                          name="attemptCount"
+                          value={newAssessment.attemptCount}
+                          onChange={handleAssessmentChange}
+                          disabled={isSubmitting}
+                          min="1"
+                          step="1"
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
                           <Calendar size={16} className="mr-1" />
                           Due Date
                         </label>
@@ -1420,12 +1769,42 @@ const GradeFormModal = ({
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
                           <Calendar size={16} className="mr-1" />
+                          Submitted Date
+                        </label>
+                        <input
+                          type="date"
+                          name="submittedDate"
+                          value={newAssessment.submittedDate}
+                          onChange={handleAssessmentChange}
+                          disabled={isSubmitting}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                          <Calendar size={16} className="mr-1" />
                           Graded Date
                         </label>
                         <input
                           type="date"
                           name="gradedDate"
                           value={newAssessment.gradedDate}
+                          onChange={handleAssessmentChange}
+                          disabled={isSubmitting}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                          <Calendar size={16} className="mr-1" />
+                          Last Attempt Date
+                        </label>
+                        <input
+                          type="date"
+                          name="lastAttemptDate"
+                          value={newAssessment.lastAttemptDate}
                           onChange={handleAssessmentChange}
                           disabled={isSubmitting}
                           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
@@ -1496,6 +1875,78 @@ const GradeFormModal = ({
                             className="ml-2 block text-sm text-gray-700"
                           >
                             Excused
+                          </label>
+                        </div>
+
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="isExtraCredit"
+                            name="isExtraCredit"
+                            checked={newAssessment.isExtraCredit}
+                            onChange={handleAssessmentChange}
+                            disabled={isSubmitting}
+                            className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
+                          />
+                          <label
+                            htmlFor="isExtraCredit"
+                            className="ml-2 block text-sm text-gray-700"
+                          >
+                            Extra Credit
+                          </label>
+                        </div>
+
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="isGroupWork"
+                            name="isGroupWork"
+                            checked={newAssessment.isGroupWork}
+                            onChange={handleAssessmentChange}
+                            disabled={isSubmitting}
+                            className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
+                          />
+                          <label
+                            htmlFor="isGroupWork"
+                            className="ml-2 block text-sm text-gray-700"
+                          >
+                            Group Work
+                          </label>
+                        </div>
+
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="isAnonymous"
+                            name="isAnonymous"
+                            checked={newAssessment.isAnonymous}
+                            onChange={handleAssessmentChange}
+                            disabled={isSubmitting}
+                            className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
+                          />
+                          <label
+                            htmlFor="isAnonymous"
+                            className="ml-2 block text-sm text-gray-700"
+                          >
+                            Anonymous
+                          </label>
+                        </div>
+
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="isModerated"
+                            name="isModerated"
+                            checked={newAssessment.isModerated}
+                            onChange={handleAssessmentChange}
+                            disabled={isSubmitting}
+                            className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
+                          />
+                          <label
+                            htmlFor="isModerated"
+                            className="ml-2 block text-sm text-gray-700"
+                          >
+                            Moderated
                           </label>
                         </div>
                       </div>
@@ -1573,6 +2024,8 @@ const GradeFormModal = ({
                                       ? "bg-yellow-100 text-yellow-800"
                                       : assessment.status === "Regraded"
                                       ? "bg-blue-100 text-blue-800"
+                                      : assessment.status === "Exempted"
+                                      ? "bg-purple-100 text-purple-800"
                                       : "bg-gray-100 text-gray-800"
                                   }`}
                                 >
@@ -1586,6 +2039,26 @@ const GradeFormModal = ({
                                 {assessment.isAbsent && (
                                   <span className="bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded-full">
                                     Absent
+                                  </span>
+                                )}
+                                {assessment.isExtraCredit && (
+                                  <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full">
+                                    Extra Credit
+                                  </span>
+                                )}
+                                {assessment.isGroupWork && (
+                                  <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-full">
+                                    Group Work
+                                  </span>
+                                )}
+                                {assessment.isAnonymous && (
+                                  <span className="bg-gray-100 text-gray-800 text-xs font-bold px-2 py-1 rounded-full">
+                                    Anonymous
+                                  </span>
+                                )}
+                                {assessment.isModerated && (
+                                  <span className="bg-orange-100 text-orange-800 text-xs font-bold px-2 py-1 rounded-full">
+                                    Moderated
                                   </span>
                                 )}
                               </div>
@@ -1651,6 +2124,20 @@ const GradeFormModal = ({
                                 </div>
                               )}
 
+                              {assessment.timeSpent > 0 && (
+                                <div className="flex items-center mt-3 text-sm text-gray-600">
+                                  <Clock size={14} className="mr-1" />
+                                  Time Spent: {assessment.timeSpent} minutes
+                                </div>
+                              )}
+
+                              {assessment.attemptCount > 1 && (
+                                <div className="flex items-center mt-3 text-sm text-gray-600">
+                                  <Hash size={14} className="mr-1" />
+                                  Attempts: {assessment.attemptCount}
+                                </div>
+                              )}
+
                               {errors[`assessment-${index}`] && (
                                 <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg flex items-center">
                                   <AlertCircle
@@ -1706,6 +2193,15 @@ const GradeFormModal = ({
                                   </div>
                                 )}
                                 
+                                {assessment.submittedDate && (
+                                  <div>
+                                    <div className="font-medium text-gray-700 mb-1">Submitted Date</div>
+                                    <div className="text-gray-600">
+                                      {new Date(assessment.submittedDate).toLocaleDateString()}
+                                    </div>
+                                  </div>
+                                )}
+                                
                                 {assessment.gradedDate && (
                                   <div>
                                     <div className="font-medium text-gray-700 mb-1">Graded Date</div>
@@ -1715,10 +2211,35 @@ const GradeFormModal = ({
                                   </div>
                                 )}
                                 
+                                {assessment.lastAttemptDate && (
+                                  <div>
+                                    <div className="font-medium text-gray-700 mb-1">Last Attempt Date</div>
+                                    <div className="text-gray-600">
+                                      {new Date(assessment.lastAttemptDate).toLocaleDateString()}
+                                    </div>
+                                  </div>
+                                )}
+                                
                                 {assessment.gradedBy && (
                                   <div>
                                     <div className="font-medium text-gray-700 mb-1">Graded By</div>
                                     <div className="text-gray-600">{assessment.gradedBy}</div>
+                                  </div>
+                                )}
+                                
+                                {assessment.moderatedBy && (
+                                  <div>
+                                    <div className="font-medium text-gray-700 mb-1">Moderated By</div>
+                                    <div className="text-gray-600">{assessment.moderatedBy}</div>
+                                  </div>
+                                )}
+                                
+                                {assessment.moderatedDate && (
+                                  <div>
+                                    <div className="font-medium text-gray-700 mb-1">Moderated Date</div>
+                                    <div className="text-gray-600">
+                                      {new Date(assessment.moderatedDate).toLocaleDateString()}
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -1748,6 +2269,161 @@ const GradeFormModal = ({
                     </button>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Analytics Tab */}
+          {activeTab === "analytics" && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-800 flex items-center">
+                      <div className="bg-indigo-100 p-2 rounded-lg mr-3">
+                        <BarChart3 className="h-5 w-5 text-indigo-600" />
+                      </div>
+                      Grade Analytics
+                    </h3>
+                    <p className="text-gray-600 text-sm mt-1">
+                      View calculated grade metrics and analytics
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Grade Calculation Summary */}
+                  <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-5 border border-indigo-100">
+                    <h4 className="font-bold text-gray-800 mb-4 flex items-center">
+                      <Calculator className="h-4 w-4 mr-2 text-indigo-600" />
+                      Grade Calculation
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Score:</span>
+                        <span className="font-bold">{gradeSummary.weightedScore.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Max Total Score:</span>
+                        <span className="font-bold">{gradeSummary.totalWeight.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Percentage:</span>
+                        <span className="font-bold">{gradeSummary.percentage.toFixed(2)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Final Grade:</span>
+                        <span className="font-bold">{gradeSummary.letterGrade}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Grade Point:</span>
+                        <span className="font-bold">{gradeSummary.gradePoint.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Quality Points:</span>
+                        <span className="font-bold">{gradeSummary.qualityPoints.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Academic Standing */}
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border border-green-100">
+                    <h4 className="font-bold text-gray-800 mb-4 flex items-center">
+                      <Award className="h-4 w-4 mr-2 text-green-600" />
+                      Academic Standing
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Result Status:</span>
+                        <span className={`font-bold px-2 py-1 rounded text-xs ${
+                          gradeSummary.resultStatus === "Pass" 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-red-100 text-red-800"
+                        }`}>
+                          {gradeSummary.resultStatus}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Academic Standing:</span>
+                        <span className={`font-bold px-2 py-1 rounded text-xs ${
+                          gradeSummary.academicStanding === "Excellent" 
+                            ? "bg-green-100 text-green-800"
+                            : gradeSummary.academicStanding === "Good"
+                            ? "bg-blue-100 text-blue-800"
+                            : gradeSummary.academicStanding === "Satisfactory"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : gradeSummary.academicStanding === "Probation"
+                            ? "bg-orange-100 text-orange-800"
+                            : "bg-red-100 text-red-800"
+                        }`}>
+                          {gradeSummary.academicStanding}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Honor Roll:</span>
+                        <span className="font-bold">{formData.honorRoll}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">GPA Scale:</span>
+                        <span className="font-bold">{formData.gpaScale}.0</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Attendance Impact */}
+                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-5 border border-blue-100">
+                    <h4 className="font-bold text-gray-800 mb-4 flex items-center">
+                      <Users className="h-4 w-4 mr-2 text-blue-600" />
+                      Attendance Impact
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Attendance Rate:</span>
+                        <span className="font-bold">{formData.attendanceRate}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Attendance Impact:</span>
+                        <span className={`font-bold px-2 py-1 rounded text-xs ${
+                          formData.attendanceImpact === "Positive" 
+                            ? "bg-green-100 text-green-800"
+                            : formData.attendanceImpact === "Neutral"
+                            ? "bg-gray-100 text-gray-800"
+                            : "bg-red-100 text-red-800"
+                        }`}>
+                          {formData.attendanceImpact}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Learning Outcomes */}
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+                    <h4 className="font-bold text-gray-800 mb-4 flex items-center">
+                      <Target className="h-4 w-4 mr-2 text-purple-600" />
+                      Learning Outcomes
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      {formData.learningOutcomesAchievement.length > 0 ? (
+                        formData.learningOutcomesAchievement.map((outcome, index) => (
+                          <div key={index} className="flex justify-between">
+                            <span className="text-gray-600 truncate max-w-[150px]">
+                              {outcome.outcome?.name || `Outcome ${index + 1}`}
+                            </span>
+                            <span className="font-bold">{outcome.achievementLevel}%</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-gray-500 italic">
+                          No learning outcomes added yet
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1796,9 +2472,9 @@ const GradeFormModal = ({
                       onClick={() => setFormData(prev => ({
                         ...prev,
                         isLocked: !prev.isLocked,
-                        lockedBy: !prev.isLocked ? currentUser?.id : "",
+                        lockedBy: !prev.isLocked ? currentUser?._id : "",
                         lockedAt: !prev.isLocked ? new Date() : null,
-                        updatedBy: currentUser?.id || ""
+                        updatedBy: currentUser?._id || ""
                       }))}
                       disabled={isSubmitting}
                       className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
@@ -1816,6 +2492,58 @@ const GradeFormModal = ({
                         <>
                           <Lock size={16} />
                           <span>Lock</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Verification Status */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center">
+                      {formData.isVerified ? (
+                        <UserCheck className="h-5 w-5 text-green-500 mr-2" />
+                      ) : (
+                        <Shield className="h-5 w-5 text-gray-500 mr-2" />
+                      )}
+                      <div>
+                        <div className="font-medium text-gray-800">
+                          Verification Status: {formData.isVerified ? "Verified" : "Not Verified"}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {formData.isVerified 
+                            ? `Verified by ${formData.verifiedBy} on ${new Date(formData.verifiedDate).toLocaleDateString()}`
+                            : "Grade has not been verified"
+                          }
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        isVerified: !prev.isVerified,
+                        verifiedBy: !prev.isVerified ? currentUser?._id : "",
+                        verifiedDate: !prev.isVerified ? new Date() : null,
+                        updatedBy: currentUser?._id || ""
+                      }))}
+                      disabled={isSubmitting}
+                      className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
+                        formData.isVerified
+                          ? "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                          : "bg-green-100 text-green-800 hover:bg-green-200"
+                      } disabled:opacity-50`}
+                    >
+                      {formData.isVerified ? (
+                        <>
+                          <Shield size={16} />
+                          <span>Unverify</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserCheck size={16} />
+                          <span>Verify</span>
                         </>
                       )}
                     </button>
@@ -2012,6 +2740,165 @@ const GradeFormModal = ({
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Tags */}
+                <div className="mb-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowIntegrationOptions(!showIntegrationOptions)}
+                    className="flex items-center justify-between w-full p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all duration-200"
+                  >
+                    <div className="flex items-center">
+                      <Tag className="h-5 w-5 text-purple-500 mr-2" />
+                      <div>
+                        <div className="font-medium text-gray-800">
+                          Tags & Integration
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {formData.tags.length} tag{formData.tags.length !== 1 ? 's' : ''} added
+                        </div>
+                      </div>
+                    </div>
+                    {showIntegrationOptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+
+                  {showIntegrationOptions && (
+                    <div className="mt-4 p-4 bg-purple-50 rounded-lg">
+                      {/* Tags Section */}
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Tags
+                        </label>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {formData.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="bg-indigo-100 text-indigo-800 text-xs font-medium px-2 py-1 rounded-full flex items-center"
+                            >
+                              {tag}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTag(index)}
+                                className="ml-1 text-indigo-600 hover:text-indigo-800"
+                                disabled={isSubmitting}
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newTag}
+                            onChange={(e) => setNewTag(e.target.value)}
+                            disabled={isSubmitting}
+                            className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
+                            placeholder="Add a tag..."
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddTag();
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddTag}
+                            disabled={isSubmitting || !newTag.trim()}
+                            className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50"
+                          >
+                            <Plus size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Integration IDs */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            LMS ID
+                          </label>
+                          <input
+                            type="text"
+                            name="lmsId"
+                            value={formData.lmsId}
+                            onChange={handleInputChange}
+                            disabled={isSubmitting}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
+                            placeholder="Learning Management System ID"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            SIS ID
+                          </label>
+                          <input
+                            type="text"
+                            name="sisId"
+                            value={formData.sisId}
+                            onChange={handleInputChange}
+                            disabled={isSubmitting}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
+                            placeholder="Student Information System ID"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Metadata */}
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Metadata
+                        </label>
+                        <div className="space-y-2 mb-3">
+                          {Object.entries(formData.metadata).map(([key, value]) => (
+                            <div key={key} className="flex items-center gap-2">
+                              <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2 py-1 rounded">
+                                {key}:
+                              </span>
+                              <span className="text-gray-700 text-sm">{value}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMetadata(key)}
+                                className="text-red-500 hover:text-red-700"
+                                disabled={isSubmitting}
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newMetadataKey}
+                            onChange={(e) => setNewMetadataKey(e.target.value)}
+                            disabled={isSubmitting}
+                            className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
+                            placeholder="Key"
+                          />
+                          <input
+                            type="text"
+                            value={newMetadataValue}
+                            onChange={(e) => setNewMetadataValue(e.target.value)}
+                            disabled={isSubmitting}
+                            className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white disabled:bg-gray-50"
+                            placeholder="Value"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddMetadata}
+                            disabled={isSubmitting || !newMetadataKey.trim() || !newMetadataValue.trim()}
+                            className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50"
+                          >
+                            <Plus size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

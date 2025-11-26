@@ -7,9 +7,9 @@ import Department from "../models/Department.js";
 import User from "../models/User.js";
 
 /**
- * Utility: Calculate final grade and grade point (aligned with Grade model)
+ * Utility: Calculate final grade and grade point (using the enhanced Grade model helper)
  */
-const calculateFinalGrade = (assessments) => {
+const calculateFinalGrade = (assessments, gpaScale = 4.0) => {
   if (!assessments || !assessments.length) {
     return { 
       grade: "F", 
@@ -40,33 +40,72 @@ const calculateFinalGrade = (assessments) => {
 
   const percentage = parseFloat(((totalScore / maxTotalScore) * 100).toFixed(2));
 
-  // 🇧🇩 Bangladesh University Grading Scale
-  let grade = "F", gradePoint = 0.00;
-
-  if (percentage >= 80) { grade = "A+"; gradePoint = 4.00; }
-  else if (percentage >= 75) { grade = "A"; gradePoint = 3.75; }
-  else if (percentage >= 70) { grade = "A-"; gradePoint = 3.50; }
-  else if (percentage >= 65) { grade = "B+"; gradePoint = 3.25; }
-  else if (percentage >= 60) { grade = "B"; gradePoint = 3.00; }
-  else if (percentage >= 55) { grade = "B-"; gradePoint = 2.75; }
-  else if (percentage >= 50) { grade = "C+"; gradePoint = 2.50; }
-  else if (percentage >= 45) { grade = "C"; gradePoint = 2.25; }
-  else if (percentage >= 40) { grade = "D"; gradePoint = 2.00; }
-  else { grade = "F"; gradePoint = 0.00; }
+  // Use the enhanced calculateGrade function from the Grade model
+  const { finalGrade, gradePoint } = calculateGrade(percentage, gpaScale);
 
   // Determine result status
   let resultStatus = "Fail";
-  if (grade === "F" || grade === "NP") {
+  if (["F", "NP", "NC"].includes(finalGrade)) {
     resultStatus = "Fail";
-  } else if (grade === "I" || grade === "W") {
+  } else if (["I", "W", "IP"].includes(finalGrade)) {
     resultStatus = "Incomplete";
-  } else if (grade === "P" || gradePoint >= 2.00) {
+  } else if (["P", "CR", "AU"].includes(finalGrade)) {
+    resultStatus = "Pass";
+  } else if (gradePoint >= 2.0) {
     resultStatus = "Pass";
   }
 
-  return { grade, gradePoint, percentage, resultStatus };
+  return { grade: finalGrade, gradePoint, percentage, resultStatus };
 };
 
+/**
+ * Helper function to calculate grade based on percentage (from Grade model)
+ */
+function calculateGrade(percentage, gpaScale = 4.0) {
+  if (gpaScale === 4.0) {
+    if (percentage >= 97) return { finalGrade: "A+", gradePoint: 4.0 };
+    if (percentage >= 93) return { finalGrade: "A", gradePoint: 4.0 };
+    if (percentage >= 90) return { finalGrade: "A-", gradePoint: 3.7 };
+    if (percentage >= 87) return { finalGrade: "B+", gradePoint: 3.3 };
+    if (percentage >= 83) return { finalGrade: "B", gradePoint: 3.0 };
+    if (percentage >= 80) return { finalGrade: "B-", gradePoint: 2.7 };
+    if (percentage >= 77) return { finalGrade: "C+", gradePoint: 2.3 };
+    if (percentage >= 73) return { finalGrade: "C", gradePoint: 2.0 };
+    if (percentage >= 70) return { finalGrade: "C-", gradePoint: 1.7 };
+    if (percentage >= 67) return { finalGrade: "D+", gradePoint: 1.3 };
+    if (percentage >= 65) return { finalGrade: "D", gradePoint: 1.0 };
+    return { finalGrade: "F", gradePoint: 0.0 };
+  } else if (gpaScale === 5.0) {
+    if (percentage >= 97) return { finalGrade: "A+", gradePoint: 5.0 };
+    if (percentage >= 93) return { finalGrade: "A", gradePoint: 5.0 };
+    if (percentage >= 90) return { finalGrade: "A-", gradePoint: 4.7 };
+    if (percentage >= 87) return { finalGrade: "B+", gradePoint: 4.3 };
+    if (percentage >= 83) return { finalGrade: "B", gradePoint: 4.0 };
+    if (percentage >= 80) return { finalGrade: "B-", gradePoint: 3.7 };
+    if (percentage >= 77) return { finalGrade: "C+", gradePoint: 3.3 };
+    if (percentage >= 73) return { finalGrade: "C", gradePoint: 3.0 };
+    if (percentage >= 70) return { finalGrade: "C-", gradePoint: 2.7 };
+    if (percentage >= 67) return { finalGrade: "D+", gradePoint: 2.3 };
+    if (percentage >= 65) return { finalGrade: "D", gradePoint: 2.0 };
+    return { finalGrade: "F", gradePoint: 0.0 };
+  } else if (gpaScale === 10.0) {
+    if (percentage >= 97) return { finalGrade: "A+", gradePoint: 10.0 };
+    if (percentage >= 93) return { finalGrade: "A", gradePoint: 10.0 };
+    if (percentage >= 90) return { finalGrade: "A-", gradePoint: 9.0 };
+    if (percentage >= 87) return { finalGrade: "B+", gradePoint: 8.0 };
+    if (percentage >= 83) return { finalGrade: "B", gradePoint: 7.0 };
+    if (percentage >= 80) return { finalGrade: "B-", gradePoint: 6.0 };
+    if (percentage >= 77) return { finalGrade: "C+", gradePoint: 5.0 };
+    if (percentage >= 73) return { finalGrade: "C", gradePoint: 4.0 };
+    if (percentage >= 70) return { finalGrade: "C-", gradePoint: 3.0 };
+    if (percentage >= 67) return { finalGrade: "D+", gradePoint: 2.0 };
+    if (percentage >= 65) return { finalGrade: "D", gradePoint: 1.0 };
+    return { finalGrade: "F", gradePoint: 0.0 };
+  }
+
+  // Default to 4.0 scale
+  return calculateGrade(percentage, 4.0);
+}
 
 /**
  * GET: Department / Course / Student Grade Report
@@ -83,11 +122,15 @@ export const getGradesReport = async (req, res) => {
       isPublished,
       resultStatus,
       program,
+      specialization,
       section,
       year,
       semester,
       appealStatus,
       moderationStatus,
+      academicStanding,
+      honorRoll,
+      gpaScale,
       page = 1,
       limit = 20,
       sortBy = 'academicYear',
@@ -106,11 +149,15 @@ export const getGradesReport = async (req, res) => {
     if (isPublished !== undefined) filter.isPublished = isPublished === 'true';
     if (resultStatus) filter.resultStatus = resultStatus;
     if (program) filter.program = program;
+    if (specialization) filter.specialization = specialization;
     if (section) filter.section = section;
     if (year) filter.year = parseInt(year);
     if (semester) filter.semester = parseInt(semester);
     if (appealStatus) filter.appealStatus = appealStatus;
     if (moderationStatus) filter.moderationStatus = moderationStatus;
+    if (academicStanding) filter.academicStanding = academicStanding;
+    if (honorRoll) filter.honorRoll = honorRoll;
+    if (gpaScale) filter.gpaScale = parseFloat(gpaScale);
 
     // Pagination
     const skip = (page - 1) * limit;
@@ -183,7 +230,9 @@ export const getAllGrades = async (req, res) => {
     if (search) {
       filter.$or = [
         { 'finalGrade': { $regex: search, $options: 'i' } },
-        { 'resultStatus': { $regex: search, $options: 'i' } }
+        { 'resultStatus': { $regex: search, $options: 'i' } },
+        { 'academicStanding': { $regex: search, $options: 'i' } },
+        { 'honorRoll': { $regex: search, $options: 'i' } }
       ];
     }
 
@@ -245,8 +294,9 @@ export const getGradeById = async (req, res) => {
       .populate("createdBy", "name")
       .populate("updatedBy", "name")
       .populate("lockedBy", "name")
-      .populate("moderatedBy", "name")
-      .populate("appealDecidedBy", "name");
+ 
+      .populate("appealDecidedBy", "name")
+      .populate("verifiedBy", "name");
 
     if (!grade) {
       return res.status(404).json({ 
@@ -273,28 +323,29 @@ export const getGradeById = async (req, res) => {
  * POST: Create New Grade Record
  */
 export const createGrade = async (req, res) => {
-  let session;
-  
   try {
-    session = await mongoose.startSession();
-    session.startTransaction();
-
     const { 
       student, 
       department, 
       course, 
       instructor, 
       program,
+      specialization,
       section,
       year, 
       semester, 
       term, 
       academicYear, 
       creditHours,
+      gpaScale = 4.0,
       assessments = [],
       remarks,
       isAudit = false,
-      isRepeat = false
+      isRepeat = false,
+      repeatCount = 0,
+      attendanceRate,
+      tags = [],
+      metadata = {}
     } = req.body;
 
     // Validate required fields
@@ -309,7 +360,6 @@ export const createGrade = async (req, res) => {
     });
     
     if (missingFields.length > 0) {
-      await session.abortTransaction();
       return res.status(400).json({ 
         success: false,
         message: "Missing required fields", 
@@ -321,7 +371,6 @@ export const createGrade = async (req, res) => {
     const objectIdFields = { student, department, course, instructor };
     for (const [field, value] of Object.entries(objectIdFields)) {
       if (!mongoose.Types.ObjectId.isValid(value)) {
-        await session.abortTransaction();
         return res.status(400).json({ 
           success: false,
           message: `Invalid ${field} ID format` 
@@ -331,52 +380,47 @@ export const createGrade = async (req, res) => {
 
     // Validate references exist
     const [studentExists, departmentExists, courseExists, instructorExists] = await Promise.all([
-      Student.findById(student).session(session),
-      Department.findById(department).session(session),
-      Course.findById(course).session(session),
-      Teacher.findById(instructor).session(session)
+      Student.findById(student),
+      Department.findById(department),
+      Course.findById(course),
+      Teacher.findById(instructor)
     ]);
 
     if (!studentExists) {
-      await session.abortTransaction();
       return res.status(404).json({ 
         success: false,
         message: "Student not found" 
       });
     }
     if (!departmentExists) {
-      await session.abortTransaction();
       return res.status(404).json({ 
         success: false,
         message: "Department not found" 
       });
     }
     if (!courseExists) {
-      await session.abortTransaction();
       return res.status(404).json({ 
         success: false,
         message: "Course not found" 
       });
     }
     if (!instructorExists) {
-      await session.abortTransaction();
       return res.status(404).json({ 
         success: false,
         message: "Instructor not found" 
       });
     }
 
-    // Check for existing grade with the same unique combination
+    // Check for existing grade with same unique combination
     const existingGrade = await Grade.findOne({ 
       student, 
       course, 
       term, 
       academicYear,
       isActive: true 
-    }).session(session);
+    });
 
     if (existingGrade) {
-      await session.abortTransaction();
       return res.status(409).json({ 
         success: false,
         message: "Grade already exists for this student, course, term, and academic year", 
@@ -390,56 +434,118 @@ export const createGrade = async (req, res) => {
       });
     }
 
-    // Validate assessments
-    const validatedAssessments = assessments.map(assessment => ({
-      ...assessment,
-      score: Math.max(0, parseFloat(assessment.score || 0)),
-      maxScore: Math.max(1, parseFloat(assessment.maxScore || 100)),
-      weight: Math.max(0, Math.min(100, parseFloat(assessment.weight || 0))),
-      isAbsent: Boolean(assessment.isAbsent),
-      isExcused: Boolean(assessment.isExcused),
-      status: assessment.status || "Pending"
-    }));
+    // Validate assessments with proper date handling
+    const validatedAssessments = assessments.map(assessment => {
+      // Create a new assessment object to avoid modifying the original
+      const newAssessment = {
+        ...assessment,
+        score: Math.max(0, parseFloat(assessment.score || 0)),
+        maxScore: Math.max(1, parseFloat(assessment.maxScore || 100)),
+        weight: Math.max(0, Math.min(100, parseFloat(assessment.weight || 0))),
+        isAbsent: Boolean(assessment.isAbsent),
+        isExcused: Boolean(assessment.isExcused),
+        isExtraCredit: Boolean(assessment.isExtraCredit),
+        status: assessment.status || "Pending"
+      };
+      
+      // Handle dates properly
+      if (assessment.dueDate) {
+        newAssessment.dueDate = new Date(assessment.dueDate);
+      }
+      
+      if (assessment.submittedDate) {
+        newAssessment.submittedDate = new Date(assessment.submittedDate);
+      }
+      
+      if (assessment.gradedDate) {
+        newAssessment.gradedDate = new Date(assessment.gradedDate);
+      }
+      
+     
+      return newAssessment;
+    });
 
     // Calculate final grade based on assessments
-    const { grade, gradePoint, percentage, resultStatus } = calculateFinalGrade(validatedAssessments);
+    const { grade, gradePoint, percentage, resultStatus } = calculateFinalGrade(validatedAssessments, gpaScale);
 
-    // Create the new grade
-    const newGrade = new Grade({
+    // Calculate quality points
+    const qualityPoints = gradePoint * parseFloat(creditHours);
+
+    // Determine academic standing based on grade point
+    let academicStanding = "Good";
+    if (gradePoint >= 3.5) {
+      academicStanding = "Excellent";
+    } else if (gradePoint >= 3.0) {
+      academicStanding = "Good";
+    } else if (gradePoint >= 2.0) {
+      academicStanding = "Satisfactory";
+    } else if (gradePoint >= 1.0) {
+      academicStanding = "Probation";
+    } else {
+      academicStanding = "Suspension";
+    }
+
+    // Create the new grade with only valid fields
+    const newGradeData = {
       student,
       department,
       course,
       instructor,
       program: program.trim(),
+      specialization: specialization?.trim(),
       section: section.trim(),
       year: parseInt(year),
       semester: parseInt(semester),
       term: term.trim(),
       academicYear: academicYear.trim(),
       creditHours: parseFloat(creditHours),
+      gpaScale: parseFloat(gpaScale),
       assessments: validatedAssessments,
       finalGrade: grade,
       gradePoint,
       percentage,
+      qualityPoints,
       resultStatus,
+      academicStanding,
       isAudit: Boolean(isAudit),
       isRepeat: Boolean(isRepeat),
+      repeatCount: parseInt(repeatCount),
+      attendanceRate: attendanceRate ? parseFloat(attendanceRate) : undefined,
       remarks: remarks?.trim(),
+      tags,
+      metadata,
       createdBy: req.user?.id,
       lastUpdatedBy: req.user?.id
-    });
+    };
 
-    await newGrade.save({ session });
-    await session.commitTransaction();
+    // Only add ObjectId fields if they're valid
 
-    // Populate the created grade for response WITHOUT session
+    
+    
+    if (req.body.appealDecidedBy && mongoose.Types.ObjectId.isValid(req.body.appealDecidedBy)) {
+      newGradeData.appealDecidedBy = req.body.appealDecidedBy;
+    }
+    
+    if (req.body.publishedBy && mongoose.Types.ObjectId.isValid(req.body.publishedBy)) {
+      newGradeData.publishedBy = req.body.publishedBy;
+    }
+    
+    if (req.body.verifiedBy && mongoose.Types.ObjectId.isValid(req.body.verifiedBy)) {
+      newGradeData.verifiedBy = req.body.verifiedBy;
+    }
+
+    const newGrade = new Grade(newGradeData);
+
+    await newGrade.save();
+
+    // Populate the created grade for response
     const populatedGrade = await Grade.findById(newGrade._id)
       .populate("student", "name rollNumber email")
       .populate("course", "name code creditHours")
       .populate("department", "name")
       .populate("instructor", "name email")
-      .populate("createdBy", "name")
-      .populate("lastUpdatedBy", "name");
+      .populate("createdBy", "name email")
+      .populate("lastUpdatedBy", "name email");
 
     console.log("New Grade Created:", newGrade._id);
 
@@ -449,11 +555,6 @@ export const createGrade = async (req, res) => {
       grade: populatedGrade 
     });
   } catch (error) {
-    // Only abort transaction if session exists and transaction is in progress
-    if (session && session.inTransaction()) {
-      await session.abortTransaction();
-    }
-    
     console.error("Create Grade Error:", error);
     
     // Handle duplicate key error specifically
@@ -480,17 +581,8 @@ export const createGrade = async (req, res) => {
       message: "Failed to create grade", 
       error: error.message 
     });
-  } finally {
-    // Always end the session if it exists
-    if (session) {
-      await session.endSession();
-    }
   }
 };
-
-/**
- * PUT: Update Existing Grade
- */
 /**
  * PUT: Update Existing Grade
  */
@@ -572,6 +664,9 @@ export const updateGrade = async (req, res) => {
     if (otherUpdates.year) updates.year = parseInt(otherUpdates.year);
     if (otherUpdates.semester) updates.semester = parseInt(otherUpdates.semester);
     if (otherUpdates.creditHours) updates.creditHours = parseFloat(otherUpdates.creditHours);
+    if (otherUpdates.gpaScale) updates.gpaScale = parseFloat(otherUpdates.gpaScale);
+    if (otherUpdates.attendanceRate) updates.attendanceRate = parseFloat(otherUpdates.attendanceRate);
+    if (otherUpdates.repeatCount) updates.repeatCount = parseInt(otherUpdates.repeatCount);
 
     if (assessments) {
       const validatedAssessments = assessments.map(assessment => ({
@@ -581,15 +676,37 @@ export const updateGrade = async (req, res) => {
         weight: Math.max(0, Math.min(100, parseFloat(assessment.weight || 0))),
         isAbsent: Boolean(assessment.isAbsent),
         isExcused: Boolean(assessment.isExcused),
+        isExtraCredit: Boolean(assessment.isExtraCredit),
         status: assessment.status || "Pending"
       }));
 
-      const { grade, gradePoint, percentage, resultStatus } = calculateFinalGrade(validatedAssessments);
+      const gpaScale = updates.gpaScale || gradeRecord.gpaScale;
+      const { grade, gradePoint, percentage, resultStatus } = calculateFinalGrade(validatedAssessments, gpaScale);
+      
+      // Calculate quality points
+      const creditHours = updates.creditHours || gradeRecord.creditHours;
+      const qualityPoints = gradePoint * creditHours;
+      
+      // Determine academic standing based on grade point
+      let academicStanding = "Good";
+      if (gradePoint >= 3.5) {
+        academicStanding = "Excellent";
+      } else if (gradePoint >= 3.0) {
+        academicStanding = "Good";
+      } else if (gradePoint >= 2.0) {
+        academicStanding = "Satisfactory";
+      } else if (gradePoint >= 1.0) {
+        academicStanding = "Probation";
+      } else {
+        academicStanding = "Suspension";
+      }
       
       updates.finalGrade = grade;
       updates.gradePoint = gradePoint;
       updates.percentage = percentage;
+      updates.qualityPoints = qualityPoints;
       updates.resultStatus = resultStatus;
+      updates.academicStanding = academicStanding;
       updates.assessments = validatedAssessments;
     }
 
@@ -716,6 +833,8 @@ export const deleteGrade = async (req, res) => {
 export const getStudentTranscript = async (req, res) => {
   try {
     const { studentId } = req.params;
+    const { includeUnpublished = false, includeInProgress = false, academicYear = null, program = null } = req.query;
+    
     if (!mongoose.Types.ObjectId.isValid(studentId)) {
       return res.status(400).json({ 
         success: false,
@@ -731,93 +850,881 @@ export const getStudentTranscript = async (req, res) => {
       });
     }
 
-    const grades = await Grade.find({ 
-      student: studentId, 
-      isActive: true,
-      isPublished: true
-    })
-      .populate("course", "name code creditHours")
-      .populate("department", "name")
-      .populate("instructor", "name")
-      .sort({ academicYear: -1, term: 1, createdAt: 1 });
+    // Use the enhanced generateTranscript static method from Grade model
+    const transcript = await Grade.generateTranscript(studentId, {
+      includeUnpublished: includeUnpublished === 'true',
+      includeInProgress: includeInProgress === 'true',
+      academicYear,
+      program
+    });
 
-    if (!grades.length) {
+    if (!transcript) {
       return res.status(404).json({ 
         success: false,
-        message: "No published grades found for this student" 
+        message: "No grades found for this student" 
       });
     }
 
-    // Calculate GPA using the static method from Grade model
-    const GPA = await Grade.calculateGPA(studentId);
-
-    const totalCredits = grades.reduce((sum, grade) => {
-      return sum + (grade.creditHours || 0);
-    }, 0);
-
-    // Calculate CGPA (Cumulative GPA for all semesters)
-    const totalGradePoints = grades.reduce((sum, grade) => {
-      return sum + ((grade.gradePoint || 0) * (grade.creditHours || 0));
-    }, 0);
-
-    const CGPA = totalCredits > 0 ? parseFloat((totalGradePoints / totalCredits).toFixed(2)) : 0;
-
-    // Group grades by academic year and term for better transcript organization
-    const transcriptByTerm = {};
-    grades.forEach(grade => {
-      const key = `${grade.academicYear} - ${grade.term}`;
-      if (!transcriptByTerm[key]) {
-        transcriptByTerm[key] = {
-          academicYear: grade.academicYear,
-          term: grade.term,
-          courses: [],
-          termCredits: 0,
-          termGradePoints: 0,
-          termGPA: 0
-        };
-      }
-      
-      transcriptByTerm[key].courses.push({
-        course: grade.course,
-        department: grade.department,
-        instructor: grade.instructor,
-        creditHours: grade.creditHours,
-        finalGrade: grade.finalGrade,
-        gradePoint: grade.gradePoint,
-        percentage: grade.percentage,
-        resultStatus: grade.resultStatus
-      });
-      
-      transcriptByTerm[key].termCredits += grade.creditHours || 0;
-      transcriptByTerm[key].termGradePoints += (grade.gradePoint || 0) * (grade.creditHours || 0);
-    });
-    
-    // Calculate term GPA for each term
-    Object.keys(transcriptByTerm).forEach(key => {
-      const term = transcriptByTerm[key];
-      term.termGPA = term.termCredits > 0 ? 
-        parseFloat((term.termGradePoints / term.termCredits).toFixed(2)) : 0;
-    });
-
     res.status(200).json({
       success: true,
-      studentId,
-      student: {
-        name: studentExists.name,
-        rollNumber: studentExists.rollNumber,
-        email: studentExists.email
-      },
-      totalCredits,
-      GPA,
-      CGPA,
-      totalCourses: grades.length,
-      transcriptByTerm
+      transcript
     });
   } catch (error) {
     console.error("Transcript Error:", error);
     res.status(500).json({ 
       success: false,
       message: "Failed to get transcript", 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * NEW: GET: Student Results by Semester
+ * Provides detailed semester-wise breakdown of a student's results with subject mark details
+ */
+export const getStudentResultsBySemester = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { academicYear = null, program = null, includeAssessments = true } = req.query;
+    
+    if (!mongoose.Types.ObjectId.isValid(studentId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid student ID format" 
+      });
+    }
+
+    const studentExists = await Student.findById(studentId);
+    if (!studentExists) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Student not found" 
+      });
+    }
+
+    // Build filter
+    const filter = { 
+      student: studentId, 
+      isActive: true,
+      isPublished: true
+    };
+    
+    if (academicYear) filter.academicYear = academicYear;
+    if (program) filter.program = program;
+
+    // Get all grades for the student
+    const grades = await Grade.find(filter)
+      .populate("course", "name code creditHours")
+      .populate("department", "name")
+      .populate("instructor", "name")
+      .sort({ academicYear: 1, semester: 1 });
+
+    if (!grades.length) {
+      return res.status(404).json({ 
+        success: false,
+        message: "No grades found for this student" 
+      });
+    }
+
+    // Group grades by academic year and semester
+    const semesters = {};
+    let totalCredits = 0;
+    let totalQualityPoints = 0;
+    let overallGPA = 0;
+
+    grades.forEach(grade => {
+      const year = grade.academicYear;
+      const semester = grade.semester;
+      const term = grade.term;
+
+      if (!semesters[year]) {
+        semesters[year] = {};
+      }
+
+      if (!semesters[year][semester]) {
+        semesters[year][semester] = {
+          term,
+          courses: [],
+          semesterCredits: 0,
+          semesterQualityPoints: 0,
+          semesterGPA: 0,
+          totalCourses: 0,
+          passedCourses: 0,
+          failedCourses: 0
+        };
+      }
+
+      // Add course details
+      const courseDetails = {
+        courseId: grade.course._id,
+        courseName: grade.course.name,
+        courseCode: grade.course.code,
+        creditHours: grade.creditHours,
+        finalGrade: grade.finalGrade,
+        gradePoint: grade.gradePoint,
+        percentage: grade.percentage,
+        resultStatus: grade.resultStatus,
+        instructor: grade.instructor.name,
+        department: grade.department.name
+      };
+
+      // Include assessment details if requested
+      if (includeAssessments === 'true' && grade.assessments && grade.assessments.length > 0) {
+        courseDetails.assessments = grade.assessments.map(assessment => ({
+          title: assessment.title,
+          assessmentType: assessment.assessmentType,
+          score: assessment.score,
+          maxScore: assessment.maxScore,
+          weight: assessment.weight,
+          percentage: parseFloat(((assessment.score / assessment.maxScore) * 100).toFixed(2)),
+          status: assessment.status,
+          isExcused: assessment.isExcused,
+          isAbsent: assessment.isAbsent
+        }));
+      }
+
+      semesters[year][semester].courses.push(courseDetails);
+      semesters[year][semester].semesterCredits += grade.creditHours;
+      semesters[year][semester].semesterQualityPoints += grade.qualityPoints;
+      semesters[year][semester].totalCourses++;
+
+      if (grade.resultStatus === "Pass") {
+        semesters[year][semester].passedCourses++;
+      } else if (grade.resultStatus === "Fail") {
+        semesters[year][semester].failedCourses++;
+      }
+
+      // Update totals
+      totalCredits += grade.creditHours;
+      totalQualityPoints += grade.qualityPoints;
+    });
+
+    // Calculate semester GPAs
+    Object.keys(semesters).forEach(year => {
+      Object.keys(semesters[year]).forEach(semester => {
+        const semesterData = semesters[year][semester];
+        semesterData.semesterGPA = semesterData.semesterCredits > 0
+          ? parseFloat((semesterData.semesterQualityPoints / semesterData.semesterCredits).toFixed(2))
+          : 0;
+      });
+    });
+
+    // Calculate overall GPA
+    overallGPA = totalCredits > 0
+      ? parseFloat((totalQualityPoints / totalCredits).toFixed(2))
+      : 0;
+
+    // Get student details
+    const studentDetails = await Student.findById(studentId)
+      .populate("user", "name email")
+      .populate("program", "name");
+
+    res.status(200).json({
+      success: true,
+      student: studentDetails,
+      academicYear: academicYear || 'All',
+      program: program || 'All',
+      overallGPA,
+      totalCredits,
+      semesters
+    });
+  } catch (error) {
+    console.error("Get Student Results By Semester Error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to get student results by semester", 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * NEW: GET: Department Results by Year and Semester
+ * Provides department-specific results by academic year and semester
+ */
+export const getDepartmentResultsByYearAndSemester = async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+    const { academicYear, semester, term, program, includeStatistics = true } = req.query;
+    
+    if (!mongoose.Types.ObjectId.isValid(departmentId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid department ID format" 
+      });
+    }
+
+    const departmentExists = await Department.findById(departmentId);
+    if (!departmentExists) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Department not found" 
+      });
+    }
+
+    // Build filter
+    const filter = { 
+      department: departmentId, 
+      isActive: true,
+      isPublished: true
+    };
+    
+    if (academicYear) filter.academicYear = academicYear;
+    if (semester) filter.semester = parseInt(semester);
+    if (term) filter.term = term;
+    if (program) filter.program = program;
+
+    // Get all grades for the department
+    const grades = await Grade.find(filter)
+      .populate("student", "name rollNumber")
+      .populate("course", "name code")
+      .populate("instructor", "name")
+      .sort({ academicYear: 1, semester: 1, course: 1 });
+
+    if (!grades.length) {
+      return res.status(404).json({ 
+        success: false,
+        message: "No grades found for this department" 
+      });
+    }
+
+    // Group grades by academic year and semester
+    const results = {};
+    let totalStudents = new Set();
+    let totalCourses = new Set();
+    let totalPasses = 0;
+    let totalFails = 0;
+    let totalCredits = 0;
+    let totalQualityPoints = 0;
+
+    grades.forEach(grade => {
+      const year = grade.academicYear;
+      const sem = grade.semester;
+      const termName = grade.term;
+      const courseId = grade.course._id.toString();
+      const studentId = grade.student._id.toString();
+
+      if (!results[year]) {
+        results[year] = {};
+      }
+
+      if (!results[year][sem]) {
+        results[year][sem] = {
+          term: termName,
+          courses: {},
+          students: new Set(),
+          semesterCredits: 0,
+          semesterQualityPoints: 0,
+          semesterGPA: 0,
+          totalCourses: 0,
+          passedCourses: 0,
+          failedCourses: 0,
+          totalStudents: 0
+        };
+      }
+
+      // Track unique students
+      results[year][sem].students.add(studentId);
+      totalStudents.add(studentId);
+      
+      // Track unique courses
+      totalCourses.add(courseId);
+
+      // Group by course
+      if (!results[year][sem].courses[courseId]) {
+        results[year][sem].courses[courseId] = {
+          course: {
+            id: courseId,
+            name: grade.course.name,
+            code: grade.course.code
+          },
+          instructor: grade.instructor.name,
+          students: [],
+          totalScore: 0,
+          maxScore: 0,
+          averageScore: 0,
+          averageGradePoint: 0,
+          passRate: 0,
+          totalStudents: 0,
+          passedStudents: 0,
+          failedStudents: 0
+        };
+      }
+
+      // Add student to course
+      results[year][sem].courses[courseId].students.push({
+        id: studentId,
+        name: grade.student.name,
+        rollNumber: grade.student.rollNumber,
+        finalGrade: grade.finalGrade,
+        gradePoint: grade.gradePoint,
+        percentage: grade.percentage,
+        resultStatus: grade.resultStatus
+      });
+
+      // Update course statistics
+      results[year][sem].courses[courseId].totalScore += grade.percentage || 0;
+      results[year][sem].courses[courseId].maxScore += 100; // Assuming percentage scale
+      results[year][sem].courses[courseId].averageGradePoint += grade.gradePoint || 0;
+      results[year][sem].courses[courseId].totalStudents++;
+
+      if (grade.resultStatus === "Pass") {
+        results[year][sem].courses[courseId].passedStudents++;
+        results[year][sem].passedCourses++;
+        totalPasses++;
+      } else if (grade.resultStatus === "Fail") {
+        results[year][sem].courses[courseId].failedStudents++;
+        results[year][sem].failedCourses++;
+        totalFails++;
+      }
+
+      // Update semester statistics
+      results[year][sem].semesterCredits += grade.creditHours || 0;
+      results[year][sem].semesterQualityPoints += grade.qualityPoints || 0;
+      results[year][sem].totalCourses++;
+
+      // Update overall statistics
+      totalCredits += grade.creditHours || 0;
+      totalQualityPoints += grade.qualityPoints || 0;
+    });
+
+    // Calculate averages and rates
+    Object.keys(results).forEach(year => {
+      Object.keys(results[year]).forEach(sem => {
+        const semesterData = results[year][sem];
+        
+        // Convert Set to count
+        semesterData.totalStudents = semesterData.students.size;
+        
+        // Calculate semester GPA
+        semesterData.semesterGPA = semesterData.semesterCredits > 0
+          ? parseFloat((semesterData.semesterQualityPoints / semesterData.semesterCredits).toFixed(2))
+          : 0;
+        
+        // Calculate course statistics
+        Object.keys(semesterData.courses).forEach(courseId => {
+          const courseData = semesterData.courses[courseId];
+          courseData.averageScore = courseData.totalStudents > 0
+            ? parseFloat((courseData.totalScore / courseData.totalStudents).toFixed(2))
+            : 0;
+          courseData.averageGradePoint = courseData.totalStudents > 0
+            ? parseFloat((courseData.averageGradePoint / courseData.totalStudents).toFixed(2))
+            : 0;
+          courseData.passRate = courseData.totalStudents > 0
+            ? parseFloat(((courseData.passedStudents / courseData.totalStudents) * 100).toFixed(2))
+            : 0;
+        });
+      });
+    });
+
+    // Calculate overall GPA
+    const overallGPA = totalCredits > 0
+      ? parseFloat((totalQualityPoints / totalCredits).toFixed(2))
+      : 0;
+
+    // Prepare response
+    const response = {
+      success: true,
+      department: {
+        id: departmentId,
+        name: departmentExists.name
+      },
+      academicYear: academicYear || 'All',
+      semester: semester || 'All',
+      term: term || 'All',
+      program: program || 'All',
+      overallStatistics: {
+        totalStudents: totalStudents.size,
+        totalCourses: totalCourses.size,
+        overallGPA,
+        totalPasses,
+        totalFails,
+        passRate: (totalPasses + totalFails) > 0
+          ? parseFloat(((totalPasses / (totalPasses + totalFails)) * 100).toFixed(2))
+          : 0
+      },
+      results
+    };
+
+    // Add additional statistics if requested
+    if (includeStatistics === 'true') {
+      // Use the enhanced getDepartmentStatistics static method from Grade model
+      const statistics = await Grade.getDepartmentStatistics(departmentId, academicYear, {
+        term,
+        includeCourseBreakdown: true,
+        includeInstructorBreakdown: true,
+        includeProgramBreakdown: true
+      });
+      
+      response.statistics = statistics;
+    }
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Get Department Results By Year And Semester Error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to get department results by year and semester", 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * NEW: GET: Results by Year and Semester
+ * Provides general results filtered by academic year and semester
+ */
+export const getResultsByYearAndSemester = async (req, res) => {
+  try {
+    const { academicYear, semester, term, departmentId, program, includeStatistics = true } = req.query;
+    
+    if (!academicYear || !semester) {
+      return res.status(400).json({
+        success: false,
+        message: "academicYear and semester are required"
+      });
+    }
+
+    // Build filter
+    const filter = { 
+      academicYear,
+      semester: parseInt(semester),
+      isActive: true,
+      isPublished: true
+    };
+    
+    if (term) filter.term = term;
+    if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) filter.department = departmentId;
+    if (program) filter.program = program;
+
+    // Get all grades for the specified academic year and semester
+    const grades = await Grade.find(filter)
+      .populate("student", "name rollNumber")
+      .populate("course", "name code")
+      .populate("department", "name")
+      .populate("instructor", "name")
+      .sort({ department: 1, course: 1, student: 1 });
+
+    if (!grades.length) {
+      return res.status(404).json({ 
+        success: false,
+        message: "No grades found for the specified academic year and semester" 
+      });
+    }
+
+    // Group grades by department
+    const departments = {};
+    let totalStudents = new Set();
+    let totalCourses = new Set();
+    let totalPasses = 0;
+    let totalFails = 0;
+    let totalCredits = 0;
+    let totalQualityPoints = 0;
+
+    grades.forEach(grade => {
+      const departmentId = grade.department._id.toString();
+      const departmentName = grade.department.name;
+      const courseId = grade.course._id.toString();
+      const studentId = grade.student._id.toString();
+
+      if (!departments[departmentId]) {
+        departments[departmentId] = {
+          name: departmentName,
+          courses: {},
+          students: new Set(),
+          departmentCredits: 0,
+          departmentQualityPoints: 0,
+          departmentGPA: 0,
+          totalCourses: 0,
+          passedCourses: 0,
+          failedCourses: 0,
+          totalStudents: 0
+        };
+      }
+
+      // Track unique students
+      departments[departmentId].students.add(studentId);
+      totalStudents.add(studentId);
+      
+      // Track unique courses
+      totalCourses.add(courseId);
+
+      // Group by course
+      if (!departments[departmentId].courses[courseId]) {
+        departments[departmentId].courses[courseId] = {
+          course: {
+            id: courseId,
+            name: grade.course.name,
+            code: grade.course.code
+          },
+          instructor: grade.instructor.name,
+          students: [],
+          totalScore: 0,
+          maxScore: 0,
+          averageScore: 0,
+          averageGradePoint: 0,
+          passRate: 0,
+          totalStudents: 0,
+          passedStudents: 0,
+          failedStudents: 0
+        };
+      }
+
+      // Add student to course
+      departments[departmentId].courses[courseId].students.push({
+        id: studentId,
+        name: grade.student.name,
+        rollNumber: grade.student.rollNumber,
+        finalGrade: grade.finalGrade,
+        gradePoint: grade.gradePoint,
+        percentage: grade.percentage,
+        resultStatus: grade.resultStatus
+      });
+
+      // Update course statistics
+      departments[departmentId].courses[courseId].totalScore += grade.percentage || 0;
+      departments[departmentId].courses[courseId].maxScore += 100; // Assuming percentage scale
+      departments[departmentId].courses[courseId].averageGradePoint += grade.gradePoint || 0;
+      departments[departmentId].courses[courseId].totalStudents++;
+
+      if (grade.resultStatus === "Pass") {
+        departments[departmentId].courses[courseId].passedStudents++;
+        departments[departmentId].passedCourses++;
+        totalPasses++;
+      } else if (grade.resultStatus === "Fail") {
+        departments[departmentId].courses[courseId].failedStudents++;
+        departments[departmentId].failedCourses++;
+        totalFails++;
+      }
+
+      // Update department statistics
+      departments[departmentId].departmentCredits += grade.creditHours || 0;
+      departments[departmentId].departmentQualityPoints += grade.qualityPoints || 0;
+      departments[departmentId].totalCourses++;
+
+      // Update overall statistics
+      totalCredits += grade.creditHours || 0;
+      totalQualityPoints += grade.qualityPoints || 0;
+    });
+
+    // Calculate averages and rates
+    Object.keys(departments).forEach(departmentId => {
+      const departmentData = departments[departmentId];
+      
+      // Convert Set to count
+      departmentData.totalStudents = departmentData.students.size;
+      
+      // Calculate department GPA
+      departmentData.departmentGPA = departmentData.departmentCredits > 0
+        ? parseFloat((departmentData.departmentQualityPoints / departmentData.departmentCredits).toFixed(2))
+        : 0;
+      
+      // Calculate course statistics
+      Object.keys(departmentData.courses).forEach(courseId => {
+        const courseData = departmentData.courses[courseId];
+        courseData.averageScore = courseData.totalStudents > 0
+          ? parseFloat((courseData.totalScore / courseData.totalStudents).toFixed(2))
+          : 0;
+        courseData.averageGradePoint = courseData.totalStudents > 0
+          ? parseFloat((courseData.averageGradePoint / courseData.totalStudents).toFixed(2))
+          : 0;
+        courseData.passRate = courseData.totalStudents > 0
+          ? parseFloat(((courseData.passedStudents / courseData.totalStudents) * 100).toFixed(2))
+          : 0;
+      });
+    });
+
+    // Calculate overall GPA
+    const overallGPA = totalCredits > 0
+      ? parseFloat((totalQualityPoints / totalCredits).toFixed(2))
+      : 0;
+
+    // Prepare response
+    const response = {
+      success: true,
+      academicYear,
+      semester,
+      term: term || 'All',
+      program: program || 'All',
+      overallStatistics: {
+        totalDepartments: Object.keys(departments).length,
+        totalStudents: totalStudents.size,
+        totalCourses: totalCourses.size,
+        overallGPA,
+        totalPasses,
+        totalFails,
+        passRate: (totalPasses + totalFails) > 0
+          ? parseFloat(((totalPasses / (totalPasses + totalFails)) * 100).toFixed(2))
+          : 0
+      },
+      departments
+    };
+
+    // Add additional statistics if requested
+    if (includeStatistics === 'true') {
+      // Get class statistics for each course
+      const courseStatistics = {};
+      
+      for (const departmentId of Object.keys(departments)) {
+        for (const courseId of Object.keys(departments[departmentId].courses)) {
+          const course = departments[departmentId].courses[courseId];
+          const statistics = await Grade.getClassStatistics(courseId, term, academicYear, {
+            includeDistribution: true,
+            includePercentiles: true
+          });
+          
+          courseStatistics[courseId] = statistics;
+        }
+      }
+      
+      response.courseStatistics = courseStatistics;
+    }
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Get Results By Year And Semester Error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to get results by year and semester", 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * NEW: GET: Section Results
+ * Provides section-specific results with detailed statistics
+ */
+export const getSectionResults = async (req, res) => {
+  try {
+    const { section, academicYear, semester, term, departmentId, courseId, program, includeStatistics = true } = req.query;
+    
+    if (!section) {
+      return res.status(400).json({
+        success: false,
+        message: "section is required"
+      });
+    }
+
+    // Build filter
+    const filter = { 
+      section,
+      isActive: true,
+      isPublished: true
+    };
+    
+    if (academicYear) filter.academicYear = academicYear;
+    if (semester) filter.semester = parseInt(semester);
+    if (term) filter.term = term;
+    if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) filter.department = departmentId;
+    if (courseId && mongoose.Types.ObjectId.isValid(courseId)) filter.course = courseId;
+    if (program) filter.program = program;
+
+    // Get all grades for the specified section
+    const grades = await Grade.find(filter)
+      .populate("student", "name rollNumber email")
+      .populate("course", "name code creditHours")
+      .populate("department", "name")
+      .populate("instructor", "name")
+      .sort({ academicYear: 1, semester: 1, course: 1 });
+
+    if (!grades.length) {
+      return res.status(404).json({ 
+        success: false,
+        message: "No grades found for the specified section" 
+      });
+    }
+
+    // Group grades by academic year and semester
+    const results = {};
+    let totalStudents = new Set();
+    let totalCourses = new Set();
+    let totalPasses = 0;
+    let totalFails = 0;
+    let totalCredits = 0;
+    let totalQualityPoints = 0;
+
+    grades.forEach(grade => {
+      const year = grade.academicYear;
+      const sem = grade.semester;
+      const termName = grade.term;
+      const courseId = grade.course._id.toString();
+      const studentId = grade.student._id.toString();
+
+      if (!results[year]) {
+        results[year] = {};
+      }
+
+      if (!results[year][sem]) {
+        results[year][sem] = {
+          term: termName,
+          courses: {},
+          students: new Set(),
+          semesterCredits: 0,
+          semesterQualityPoints: 0,
+          semesterGPA: 0,
+          totalCourses: 0,
+          passedCourses: 0,
+          failedCourses: 0,
+          totalStudents: 0
+        };
+      }
+
+      // Track unique students
+      results[year][sem].students.add(studentId);
+      totalStudents.add(studentId);
+      
+      // Track unique courses
+      totalCourses.add(courseId);
+
+      // Group by course
+      if (!results[year][sem].courses[courseId]) {
+        results[year][sem].courses[courseId] = {
+          course: {
+            id: courseId,
+            name: grade.course.name,
+            code: grade.course.code,
+            creditHours: grade.course.creditHours
+          },
+          instructor: grade.instructor.name,
+          department: grade.department.name,
+          students: [],
+          totalScore: 0,
+          maxScore: 0,
+          averageScore: 0,
+          averageGradePoint: 0,
+          passRate: 0,
+          totalStudents: 0,
+          passedStudents: 0,
+          failedStudents: 0
+        };
+      }
+
+      // Add student to course
+      results[year][sem].courses[courseId].students.push({
+        id: studentId,
+        name: grade.student.name,
+        rollNumber: grade.student.rollNumber,
+        email: grade.student.email,
+        finalGrade: grade.finalGrade,
+        gradePoint: grade.gradePoint,
+        percentage: grade.percentage,
+        resultStatus: grade.resultStatus,
+        academicStanding: grade.academicStanding
+      });
+
+      // Update course statistics
+      results[year][sem].courses[courseId].totalScore += grade.percentage || 0;
+      results[year][sem].courses[courseId].maxScore += 100; // Assuming percentage scale
+      results[year][sem].courses[courseId].averageGradePoint += grade.gradePoint || 0;
+      results[year][sem].courses[courseId].totalStudents++;
+
+      if (grade.resultStatus === "Pass") {
+        results[year][sem].courses[courseId].passedStudents++;
+        results[year][sem].passedCourses++;
+        totalPasses++;
+      } else if (grade.resultStatus === "Fail") {
+        results[year][sem].courses[courseId].failedStudents++;
+        results[year][sem].failedCourses++;
+        totalFails++;
+      }
+
+      // Update semester statistics
+      results[year][sem].semesterCredits += grade.creditHours || 0;
+      results[year][sem].semesterQualityPoints += grade.qualityPoints || 0;
+      results[year][sem].totalCourses++;
+
+      // Update overall statistics
+      totalCredits += grade.creditHours || 0;
+      totalQualityPoints += grade.qualityPoints || 0;
+    });
+
+    // Calculate averages and rates
+    Object.keys(results).forEach(year => {
+      Object.keys(results[year]).forEach(sem => {
+        const semesterData = results[year][sem];
+        
+        // Convert Set to count
+        semesterData.totalStudents = semesterData.students.size;
+        
+        // Calculate semester GPA
+        semesterData.semesterGPA = semesterData.semesterCredits > 0
+          ? parseFloat((semesterData.semesterQualityPoints / semesterData.semesterCredits).toFixed(2))
+          : 0;
+        
+        // Calculate course statistics
+        Object.keys(semesterData.courses).forEach(courseId => {
+          const courseData = semesterData.courses[courseId];
+          courseData.averageScore = courseData.totalStudents > 0
+            ? parseFloat((courseData.totalScore / courseData.totalStudents).toFixed(2))
+            : 0;
+          courseData.averageGradePoint = courseData.totalStudents > 0
+            ? parseFloat((courseData.averageGradePoint / courseData.totalStudents).toFixed(2))
+            : 0;
+          courseData.passRate = courseData.totalStudents > 0
+            ? parseFloat(((courseData.passedStudents / courseData.totalStudents) * 100).toFixed(2))
+            : 0;
+        });
+      });
+    });
+
+    // Calculate overall GPA
+    const overallGPA = totalCredits > 0
+      ? parseFloat((totalQualityPoints / totalCredits).toFixed(2))
+      : 0;
+
+    // Prepare response
+    const response = {
+      success: true,
+      section,
+      academicYear: academicYear || 'All',
+      semester: semester || 'All',
+      term: term || 'All',
+      departmentId: departmentId || 'All',
+      courseId: courseId || 'All',
+      program: program || 'All',
+      overallStatistics: {
+        totalStudents: totalStudents.size,
+        totalCourses: totalCourses.size,
+        overallGPA,
+        totalPasses,
+        totalFails,
+        passRate: (totalPasses + totalFails) > 0
+          ? parseFloat(((totalPasses / (totalPasses + totalFails)) * 100).toFixed(2))
+          : 0
+      },
+      results
+    };
+
+    // Add additional statistics if requested
+    if (includeStatistics === 'true') {
+      // Get class statistics for each course
+      const courseStatistics = {};
+      
+      for (const year of Object.keys(results)) {
+        for (const sem of Object.keys(results[year])) {
+          for (const courseId of Object.keys(results[year][sem].courses)) {
+            const course = results[year][sem].courses[courseId];
+            const statistics = await Grade.getClassStatistics(courseId, term, year, {
+              includeDistribution: true,
+              includePercentiles: true
+            });
+            
+            courseStatistics[courseId] = statistics;
+          }
+        }
+      }
+      
+      response.courseStatistics = courseStatistics;
+    }
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Get Section Results Error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to get section results", 
       error: error.message 
     });
   }
@@ -908,7 +1815,16 @@ export const publishGrade = async (req, res) => {
 export const getStudentGPA = async (req, res) => {
   try {
     const { studentId } = req.params;
-    const { academicYear, term } = req.query;
+    const { 
+      academicYear = null, 
+      term = null, 
+      program = null,
+      gpaScale = 4.0,
+      includeInProgress = false,
+      includeWithdrawn = false,
+      onlyPassed = true,
+      onlyCompleted = false
+    } = req.query;
 
     if (!mongoose.Types.ObjectId.isValid(studentId)) {
       return res.status(400).json({ 
@@ -925,7 +1841,17 @@ export const getStudentGPA = async (req, res) => {
       });
     }
 
-    const GPA = await Grade.calculateGPA(studentId, academicYear || null, term || null);
+    // Use the enhanced calculateGPA static method from Grade model
+    const gpaData = await Grade.calculateGPA(studentId, {
+      academicYear,
+      term,
+      program,
+      gpaScale: parseFloat(gpaScale),
+      includeInProgress: includeInProgress === 'true',
+      includeWithdrawn: includeWithdrawn === 'true',
+      onlyPassed: onlyPassed === 'true',
+      onlyCompleted: onlyCompleted === 'true'
+    });
 
     res.status(200).json({
       success: true,
@@ -936,7 +1862,9 @@ export const getStudentGPA = async (req, res) => {
       },
       academicYear: academicYear || 'All',
       term: term || 'All',
-      GPA
+      program: program || 'All',
+      gpaScale,
+      gpaData
     });
   } catch (error) {
     console.error("Get GPA Error:", error);
@@ -954,6 +1882,7 @@ export const getStudentGPA = async (req, res) => {
 export const getClassStatistics = async (req, res) => {
   try {
     const { courseId, term, academicYear } = req.query;
+    const { includeDistribution = true, includePercentiles = true, section = null } = req.query;
 
     if (!courseId || !term || !academicYear) {
       return res.status(400).json({
@@ -969,7 +1898,12 @@ export const getClassStatistics = async (req, res) => {
       });
     }
 
-    const statistics = await Grade.getClassStatistics(courseId, term, academicYear);
+    // Use the enhanced getClassStatistics static method from Grade model
+    const statistics = await Grade.getClassStatistics(courseId, term, academicYear, {
+      includeDistribution: includeDistribution === 'true',
+      includePercentiles: includePercentiles === 'true',
+      section
+    });
 
     res.status(200).json({
       success: true,
@@ -994,6 +1928,12 @@ export const getClassStatistics = async (req, res) => {
 export const getDepartmentStatistics = async (req, res) => {
   try {
     const { departmentId, academicYear } = req.query;
+    const { 
+      term = null,
+      includeCourseBreakdown = true,
+      includeInstructorBreakdown = true,
+      includeProgramBreakdown = true
+    } = req.query;
 
     if (!departmentId || !academicYear) {
       return res.status(400).json({
@@ -1009,7 +1949,13 @@ export const getDepartmentStatistics = async (req, res) => {
       });
     }
 
-    const statistics = await Grade.getDepartmentStatistics(departmentId, academicYear);
+    // Use the enhanced getDepartmentStatistics static method from Grade model
+    const statistics = await Grade.getDepartmentStatistics(departmentId, academicYear, {
+      term,
+      includeCourseBreakdown: includeCourseBreakdown === 'true',
+      includeInstructorBreakdown: includeInstructorBreakdown === 'true',
+      includeProgramBreakdown: includeProgramBreakdown === 'true'
+    });
 
     res.status(200).json({
       success: true,
@@ -1022,6 +1968,85 @@ export const getDepartmentStatistics = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: "Failed to get department statistics", 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * GET: Honor Roll
+ */
+export const getHonorRoll = async (req, res) => {
+  try {
+    const { 
+      academicYear = null,
+      term = null,
+      program = null,
+      minGPA = 3.5,
+      minCredits = 12,
+      honorRollType = "Dean's List"
+    } = req.query;
+
+    // Use the getHonorRoll static method from Grade model
+    const honorRollStudents = await Grade.getHonorRoll({
+      academicYear,
+      term,
+      program,
+      minGPA: parseFloat(minGPA),
+      minCredits: parseInt(minCredits),
+      honorRollType
+    });
+
+    res.status(200).json({
+      success: true,
+      honorRollType,
+      minGPA,
+      minCredits,
+      honorRollStudents
+    });
+  } catch (error) {
+    console.error("Get Honor Roll Error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to get honor roll", 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * GET: Graduation Requirements Status
+ */
+export const getGraduationRequirementsStatus = async (req, res) => {
+  try {
+    const { studentId, programId } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(studentId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid student ID format" 
+      });
+    }
+    
+    if (!mongoose.Types.ObjectId.isValid(programId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid program ID format" 
+      });
+    }
+
+    // Use the getGraduationRequirementsStatus static method from Grade model
+    const graduationStatus = await Grade.getGraduationRequirementsStatus(studentId, programId);
+
+    res.status(200).json({
+      success: true,
+      graduationStatus
+    });
+  } catch (error) {
+    console.error("Get Graduation Requirements Status Error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to get graduation requirements status", 
       error: error.message 
     });
   }
@@ -1058,7 +2083,7 @@ export const lockGrade = async (req, res) => {
       });
     }
 
-    // Lock the grade
+    // Lock the grade using the instance method
     await grade.lock(req.user?.id);
 
     // Get updated grade with populated fields
@@ -1112,7 +2137,7 @@ export const unlockGrade = async (req, res) => {
       });
     }
 
-    // Unlock the grade
+    // Unlock the grade using the instance method
     await grade.unlock();
 
     // Get updated grade with populated fields
@@ -1166,12 +2191,12 @@ export const submitForModeration = async (req, res) => {
       });
     }
 
-    // Submit for moderation
+    // Submit for moderation using the instance method
     await grade.submitForModeration(req.user?.id, notes);
 
     // Get updated grade with populated fields
     const updatedGrade = await Grade.findById(id)
-      .populate("moderatedBy", "name")
+       
       .populate("lastUpdatedBy", "name");
 
     res.status(200).json({
@@ -1221,12 +2246,12 @@ export const approveModeration = async (req, res) => {
       });
     }
 
-    // Approve moderation
+    // Approve moderation using the instance method
     await grade.approveModeration(req.user?.id, notes);
 
     // Get updated grade with populated fields
     const updatedGrade = await Grade.findById(id)
-      .populate("moderatedBy", "name")
+      
       .populate("lastUpdatedBy", "name");
 
     res.status(200).json({
@@ -1276,12 +2301,12 @@ export const rejectModeration = async (req, res) => {
       });
     }
 
-    // Reject moderation
+    // Reject moderation using the instance method
     await grade.rejectModeration(req.user?.id, notes);
 
     // Get updated grade with populated fields
     const updatedGrade = await Grade.findById(id)
-      .populate("moderatedBy", "name")
+      
       .populate("lastUpdatedBy", "name");
 
     res.status(200).json({
@@ -1329,7 +2354,7 @@ export const submitAppeal = async (req, res) => {
       });
     }
 
-    // Check if grade can be appealed
+    // Check if grade can be appealed using the instance method
     if (!grade.canAppeal()) {
       return res.status(409).json({
         success: false,
@@ -1421,17 +2446,34 @@ export const decideAppeal = async (req, res) => {
       if (newGradePoint !== undefined) updateData.gradePoint = parseFloat(newGradePoint);
       if (newPercentage !== undefined) updateData.percentage = parseFloat(newPercentage);
       
+      // Update quality points
+      const creditHours = grade.creditHours || 0;
+      updateData.qualityPoints = (newGradePoint || 0) * creditHours;
+      
       // Update result status based on new grade
-      if (['F', 'NP'].includes(newGrade)) {
+      if (['F', 'NP', 'NC'].includes(newGrade)) {
         updateData.resultStatus = 'Fail';
-      } else if (['I', 'W'].includes(newGrade)) {
+      } else if (['I', 'W', 'IP'].includes(newGrade)) {
         updateData.resultStatus = 'Incomplete';
-      } else if (newGrade === 'P') {
+      } else if (['P', 'CR', 'AU'].includes(newGrade)) {
         updateData.resultStatus = 'Pass';
       } else if (newGradePoint >= 2.0) {
         updateData.resultStatus = 'Pass';
       } else {
         updateData.resultStatus = 'Fail';
+      }
+      
+      // Update academic standing based on new grade point
+      if (newGradePoint >= 3.5) {
+        updateData.academicStanding = 'Excellent';
+      } else if (newGradePoint >= 3.0) {
+        updateData.academicStanding = 'Good';
+      } else if (newGradePoint >= 2.0) {
+        updateData.academicStanding = 'Satisfactory';
+      } else if (newGradePoint >= 1.0) {
+        updateData.academicStanding = 'Probation';
+      } else {
+        updateData.academicStanding = 'Suspension';
       }
     }
 
@@ -1456,6 +2498,60 @@ export const decideAppeal = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: "Failed to decide grade appeal", 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * POST: Verify Grade
+ */
+export const verifyGrade = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid grade ID format" 
+      });
+    }
+
+    const grade = await Grade.findOne({ _id: id, isActive: true });
+    if (!grade) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Grade not found" 
+      });
+    }
+
+    // Check if grade is already verified
+    if (grade.isVerified) {
+      return res.status(409).json({
+        success: false,
+        message: "Grade is already verified",
+        error: "ALREADY_VERIFIED"
+      });
+    }
+
+    // Verify the grade using the instance method
+    await grade.verify(req.user?.id);
+
+    // Get updated grade with populated fields
+    const updatedGrade = await Grade.findById(id)
+      .populate("verifiedBy", "name")
+      .populate("lastUpdatedBy", "name");
+
+    res.status(200).json({
+      success: true,
+      message: "Grade verified successfully",
+      grade: updatedGrade
+    });
+  } catch (error) {
+    console.error("Verify Grade Error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to verify grade", 
       error: error.message 
     });
   }
@@ -1555,11 +2651,33 @@ export const bulkCreateGrades = async (req, res) => {
           weight: Math.max(0, Math.min(100, parseFloat(assessment.weight || 0))),
           isAbsent: Boolean(assessment.isAbsent),
           isExcused: Boolean(assessment.isExcused),
+          isExtraCredit: Boolean(assessment.isExtraCredit),
           status: assessment.status || "Pending"
         }));
 
+        // Get GPA scale or default to 4.0
+        const gpaScale = gradeData.gpaScale || 4.0;
+
         // Calculate final grade based on assessments
-        const { grade, gradePoint, percentage, resultStatus } = calculateFinalGrade(validatedAssessments);
+        const { grade, gradePoint, percentage, resultStatus } = calculateFinalGrade(validatedAssessments, gpaScale);
+
+        // Calculate quality points
+        const creditHours = parseFloat(gradeData.creditHours);
+        const qualityPoints = gradePoint * creditHours;
+
+        // Determine academic standing based on grade point
+        let academicStanding = "Good";
+        if (gradePoint >= 3.5) {
+          academicStanding = "Excellent";
+        } else if (gradePoint >= 3.0) {
+          academicStanding = "Good";
+        } else if (gradePoint >= 2.0) {
+          academicStanding = "Satisfactory";
+        } else if (gradePoint >= 1.0) {
+          academicStanding = "Probation";
+        } else {
+          academicStanding = "Suspension";
+        }
 
         // Create the new grade
         const newGrade = new Grade({
@@ -1568,20 +2686,28 @@ export const bulkCreateGrades = async (req, res) => {
           course: gradeData.course,
           instructor: gradeData.instructor,
           program: gradeData.program.trim(),
+          specialization: gradeData.specialization?.trim(),
           section: gradeData.section.trim(),
           year: parseInt(gradeData.year),
           semester: parseInt(gradeData.semester),
           term: gradeData.term.trim(),
           academicYear: gradeData.academicYear.trim(),
-          creditHours: parseFloat(gradeData.creditHours),
+          creditHours: creditHours,
+          gpaScale: parseFloat(gpaScale),
           assessments: validatedAssessments,
           finalGrade: grade,
           gradePoint,
           percentage,
+          qualityPoints,
           resultStatus,
+          academicStanding,
           isAudit: Boolean(gradeData.isAudit),
           isRepeat: Boolean(gradeData.isRepeat),
+          repeatCount: parseInt(gradeData.repeatCount || 0),
+          attendanceRate: gradeData.attendanceRate ? parseFloat(gradeData.attendanceRate) : undefined,
           remarks: gradeData.remarks?.trim(),
+          tags: gradeData.tags || [],
+          metadata: gradeData.metadata || {},
           createdBy: req.user?.id,
           lastUpdatedBy: req.user?.id
         });
@@ -1633,6 +2759,9 @@ export const bulkCreateGrades = async (req, res) => {
 
 /**
  * POST: Bulk Update Grades
+ */
+/**
+ * POST: Bulk Update Grades (continued)
  */
 export const bulkUpdateGrades = async (req, res) => {
   const session = await mongoose.startSession();
@@ -1720,6 +2849,9 @@ export const bulkUpdateGrades = async (req, res) => {
         if (updates.year) updateData.year = parseInt(updates.year);
         if (updates.semester) updateData.semester = parseInt(updates.semester);
         if (updates.creditHours) updateData.creditHours = parseFloat(updates.creditHours);
+        if (updates.gpaScale) updateData.gpaScale = parseFloat(updates.gpaScale);
+        if (updates.attendanceRate) updateData.attendanceRate = parseFloat(updates.attendanceRate);
+        if (updates.repeatCount) updateData.repeatCount = parseInt(updates.repeatCount);
 
         if (updates.assessments) {
           const validatedAssessments = updates.assessments.map(assessment => ({
@@ -1729,15 +2861,37 @@ export const bulkUpdateGrades = async (req, res) => {
             weight: Math.max(0, Math.min(100, parseFloat(assessment.weight || 0))),
             isAbsent: Boolean(assessment.isAbsent),
             isExcused: Boolean(assessment.isExcused),
+            isExtraCredit: Boolean(assessment.isExtraCredit),
             status: assessment.status || "Pending"
           }));
 
-          const { grade, gradePoint, percentage, resultStatus } = calculateFinalGrade(validatedAssessments);
+          const gpaScale = updateData.gpaScale || gradeRecord.gpaScale;
+          const { grade, gradePoint, percentage, resultStatus } = calculateFinalGrade(validatedAssessments, gpaScale);
+          
+          // Calculate quality points
+          const creditHours = updateData.creditHours || gradeRecord.creditHours;
+          const qualityPoints = gradePoint * creditHours;
+          
+          // Determine academic standing based on grade point
+          let academicStanding = "Good";
+          if (gradePoint >= 3.5) {
+            academicStanding = "Excellent";
+          } else if (gradePoint >= 3.0) {
+            academicStanding = "Good";
+          } else if (gradePoint >= 2.0) {
+            academicStanding = "Satisfactory";
+          } else if (gradePoint >= 1.0) {
+            academicStanding = "Probation";
+          } else {
+            academicStanding = "Suspension";
+          }
           
           updateData.finalGrade = grade;
           updateData.gradePoint = gradePoint;
           updateData.percentage = percentage;
+          updateData.qualityPoints = qualityPoints;
           updateData.resultStatus = resultStatus;
+          updateData.academicStanding = academicStanding;
           updateData.assessments = validatedAssessments;
         }
 
@@ -1864,7 +3018,7 @@ export const getGradesPendingModeration = async (req, res) => {
         .populate("course", "name code creditHours")
         .populate("department", "name")
         .populate("instructor", "name email")
-        .populate("moderatedBy", "name")
+         
         .sort({ createdAt: 1 }) // Oldest first
         .skip(skip)
         .limit(Number(limit)),
